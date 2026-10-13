@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no">
+<title>ゲームローダー</title>
+<style>
+:root{
+  --bg:#f4f1e6;
+  --fg:#24352e;
+  --card:#fff;
+  --line:#b9b49c;
+  --btn:#3d6460;
+  --btnfg:#fff;
+  --danger:#c0523c;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#172e30;
+    --fg:#f7efcf;
+    --card:#294649;
+    --line:#4f7773;
+    --btn:#5a8a82;
+    --btnfg:#10201f;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#172e30;
+  --fg:#f7efcf;
+  --card:#294649;
+  --line:#4f7773;
+  --btn:#5a8a82;
+  --btnfg:#10201f;
+}
+:root{
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top, 0px);
+  padding-bottom:env(safe-area-inset-bottom, 0px);
+  -webkit-text-size-adjust:100%;
+}
+html{
+  margin:0;
+  width:100%;
+  height:100%;
+  scroll-padding-top:env(safe-area-inset-top, 0px);
+}
+body{
+  margin:0;
+  width:100%;
+  min-height:100%;
+  background:var(--bg);
+  color:var(--fg);
+  font-family:"Hiragino Kaku Gothic ProN","Yu Gothic",Meiryo,sans-serif;
+  line-height:1.7;
+  overflow-x:hidden;
+  -webkit-tap-highlight-color:transparent;
+  overscroll-behavior:none;
+  touch-action:manipulation;
+}
+main{
+  max-width:640px;
+  width:min(100%, 640px);
+  margin:0 auto;
+  padding:16px;
+  box-sizing:border-box;
+}
+h1{
+  font-size:20px;
+  margin:0 0 8px;
+}
+p{
+  font-size:14px;
+  margin:6px 0;
+}
+textarea{
+  width:100%;
+  height:200px;
+  font:12px monospace;
+  background:var(--card);
+  color:var(--fg);
+  border:2px solid var(--line);
+  border-radius:10px;
+  padding:10px;
+  box-sizing:border-box;
+  resize:vertical;
+}
+button,label.btn{
+  display:block;
+  width:100%;
+  margin:10px 0;
+  padding:14px;
+  font:700 16px inherit;
+  font-family:inherit;
+  text-align:center;
+  background:var(--btn);
+  color:var(--btnfg);
+  border:0;
+  border-radius:12px;
+  cursor:pointer;
+  -webkit-appearance:none;
+  appearance:none;
+}
+button.sub,label.sub{
+  background:transparent;
+  color:var(--fg);
+  border:2px solid var(--line);
+}
+input[type=file]{display:none}
+#err{
+  color:var(--danger);
+  font-weight:700;
+  min-height:1.2em;
+}
+#frame{
+  position:fixed;
+  inset:0;
+  width:100%;
+  height:100vh;
+  height:100dvh;
+  max-height:-webkit-fill-available;
+  border:0;
+  background:#172e30;
+  z-index:50;
+  display:block;
+}
+[hidden]{display:none!important}
+@media (max-width:480px){
+  main{padding:12px 12px 18px}
+  h1{font-size:18px;margin-bottom:6px}
+  p{font-size:13px}
+  textarea{height:180px}
+  button,label.btn{padding:13px 12px;font-size:15px}
+}
+</style>
+</head>
+<body>
+<main id="ui">
+  <h1>🌿 ゲームローダー</h1>
+  <p>ゲームのHTMLコードを貼り付けるか、ファイルを選んでください。スマホ用の調整は自動で入ります。</p>
+  <p>一度読み込むと端末に記憶されるので、次からは「つづきから遊ぶ」だけです。</p>
+
+  <div id="saved" hidden>
+    <button id="playSaved">▶ 記憶したゲームを遊ぶ</button>
+    <button class="sub" id="clearSaved">記憶を消して貼り直す</button>
+  </div>
+
+  <div id="input">
+    <textarea id="code" placeholder="ここにHTMLコードを貼り付け"></textarea>
+    <button id="playPasted">▶ 貼り付けたコードで遊ぶ</button>
+    <label class="btn sub" for="file">📁 HTMLファイルを選ぶ</label>
+    <input type="file" id="file" accept=".html,.htm,text/html,text/plain">
+  </div>
+
+  <p id="err" role="alert"></p>
+</main>
+
+<iframe id="frame" hidden title="ゲーム" allow="autoplay"></iframe>
+
+<script>
+(function(){
+"use strict";
+var KEY="game-loader-html-v1";
+var $=function(id){return document.getElementById(id)};
+
+var PATCH=
+'<style>'+
+'html{-webkit-text-size-adjust:100%;-webkit-user-select:text;user-select:text;overscroll-behavior:none}'+
+'body{-webkit-tap-highlight-color:transparent;overscroll-behavior:none;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);margin:0;min-height:100vh;min-height:100dvh;background:#f4f1e6}'+
+'button{touch-action:manipulation}'+
+'@media (pointer:coarse),(max-width:700px){'+
+'main{padding:8px}h1{font-size:18px;margin:0 0 4px}.subtitle,footer{display:none}'+
+'#soundToggle{margin:4px 0;padding:6px 10px;font-size:12px}'+
+'#status{padding:8px;font-size:12px;line-height:1.6;margin-bottom:6px}'+
+'.extra-toolbar{margin:6px 0}'+
+'#message{min-height:56px;padding:10px;font-size:14px;line-height:1.6;margin-top:8px}'+
+'.controls{position:sticky;bottom:0;z-index:5;margin:8px -8px 0;padding:10px 14px calc(10px + env(safe-area-inset-bottom));background:#172e30ee;border-top:2px solid #3d6460}'+
+'.pad{grid-template-columns:repeat(3,66px);gap:6px}.pad button{height:62px;font-size:20px;border-radius:14px}'+
+'#action{min-width:128px;min-height:128px;border-radius:50%;font-size:18px;background:#9b7a56}'+
+'.card{max-height:92vh;max-height:92dvh;padding:14px}'+
+'.choices button,#battle .actions button{min-height:52px}#battle .actions{gap:8px}}'+
+'@media (orientation:landscape) and (max-height:520px){'+
+'main{padding:4px;max-width:none}h1,#status,#soundToggle,.extra-toolbar{display:none}'+
+'#game{max-height:calc(100dvh - 64px);width:auto;margin:0 auto}.stage{text-align:center}'+
+'#message{min-height:0;margin-top:4px;padding:6px 10px;font-size:13px}'+
+'.controls{position:fixed;left:0;right:0;bottom:0;margin:0;padding:0 16px calc(8px + env(safe-area-inset-bottom));background:none;border:0;pointer-events:none}'+
+'.controls>*{pointer-events:auto;opacity:.78}.pad{grid-template-columns:repeat(3,56px)}.pad button{height:52px}'+
+'#action{min-width:92px;min-height:92px}}'+
+'</style>'+
+'<script>'+
+'["gesturestart","gesturechange","gestureend"].forEach(function(t){document.addEventListener(t,function(e){e.preventDefault()},{passive:false})});'+
+'var _l=0;document.addEventListener("touchend",function(e){var n=Date.now();if(n-_l<350&&e.target.closest&&e.target.closest(".controls,#game")){e.preventDefault()}_l=n},{passive:false});'+
+'<\\/script>';
+
+function build(html){
+  var out=html||"";
+  out=out.replace(/<meta[^>]+name=["']viewport["'][^>]*>/i,
+    '<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no">');
+  var i=out.toLowerCase().lastIndexOf("</body>");
+  return i>=0 ? out.slice(0,i)+PATCH+out.slice(i) : out+PATCH;
+}
+function play(html){
+  var f=$("frame");
+  f.srcdoc=build(html);
+  f.hidden=false;
+  $("ui").hidden=true;
+}
+function store(html){
+  try{localStorage.setItem(KEY,html);return true}catch(e){return false}
+}
+function load(){
+  try{return localStorage.getItem(KEY)}catch(e){return null}
+}
+function check(html){
+  if(!html||html.length<500||!/<(html|canvas|body)/i.test(html)){
+    $("err").textContent="ゲームのHTMLコードに見えません。全体をコピーできているか確認してください。";
+    return false;
+  }
+  $("err").textContent="";
+  return true;
+}
+function start(html){
+  if(!check(html))return;
+  if(!store(html))$("err").textContent="";
+  play(html);
+}
+var saved=load();
+if(saved){
+  $("saved").hidden=false;
+  $("input").hidden=true;
+}
+$("playSaved").onclick=function(){var s=load();if(s)play(s)};
+$("clearSaved").onclick=function(){
+  try{localStorage.removeItem(KEY)}catch(e){}
+  $("saved").hidden=true;$("input").hidden=false;
+};
+$("playPasted").onclick=function(){start($("code").value)};
+$("file").onchange=function(){
+  var file=this.files&&this.files[0];
+  if(!file)return;
+  var r=new FileReader();
+  r.onload=function(){start(String(r.result))};
+  r.onerror=function(){$("err").textContent="ファイルを読み込めませんでした。"};
+  r.readAsText(file);
+};
+})();
+</script>
+</body>
+</html>
