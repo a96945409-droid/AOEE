@@ -1,248 +1,3056 @@
+
 <!DOCTYPE html>
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no">
-<title>ゲームローダー</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>こもれびの冒険</title>
 <style>
-:root{
-  --bg:#f4f1e6;
-  --fg:#24352e;
-  --card:#fff;
-  --line:#b9b49c;
-  --btn:#3d6460;
-  --btnfg:#fff;
-  --danger:#c0523c;
-}
-@media (prefers-color-scheme:dark){
-  :root:not([data-theme="light"]){
-    --bg:#172e30;
-    --fg:#f7efcf;
-    --card:#294649;
-    --line:#4f7773;
-    --btn:#5a8a82;
-    --btnfg:#10201f;
-  }
-}
-:root[data-theme="dark"]{
-  --bg:#172e30;
-  --fg:#f7efcf;
-  --card:#294649;
-  --line:#4f7773;
-  --btn:#5a8a82;
-  --btnfg:#10201f;
-}
-:root{
-  box-sizing:border-box;
-  padding-top:env(safe-area-inset-top, 0px);
-  padding-bottom:env(safe-area-inset-bottom, 0px);
-  -webkit-text-size-adjust:100%;
-}
-html{
-  margin:0;
-  width:100%;
-  height:100%;
-  scroll-padding-top:env(safe-area-inset-top, 0px);
-}
+*{box-sizing:border-box}
 body{
-  margin:0;
-  width:100%;
-  min-height:100%;
-  background:var(--bg);
-  color:var(--fg);
-  font-family:"Hiragino Kaku Gothic ProN","Yu Gothic",Meiryo,sans-serif;
-  line-height:1.7;
-  overflow-x:hidden;
-  -webkit-tap-highlight-color:transparent;
-  overscroll-behavior:none;
-  touch-action:manipulation;
+  margin:0;background:#172e30;color:#f7efcf;
+  font-family:system-ui,sans-serif;
 }
-main{
-  max-width:640px;
-  width:min(100%, 640px);
-  margin:0 auto;
-  padding:16px;
-  box-sizing:border-box;
+main{max-width:760px;margin:auto;padding:16px}
+h1{font-size:23px;margin:0 0 6px}
+.subtitle{font-size:12px;color:#b9cebb;margin:0 0 12px}
+#status{
+  padding:12px;background:#294649;border-radius:10px;
+  font-size:13px;line-height:1.8;margin-bottom:10px;
 }
-h1{
-  font-size:20px;
-  margin:0 0 8px;
+.stage{position:relative}
+canvas{
+  display:block;width:100%;height:auto;background:#91bc73;
+  border:4px solid #e6d5a3;border-radius:8px;
+  image-rendering:pixelated;touch-action:none;
 }
-p{
-  font-size:14px;
-  margin:6px 0;
+#message{
+  background:#f4e8c5;color:#30423b;padding:14px;
+  border-radius:9px;margin-top:10px;min-height:78px;
+  line-height:1.7;font-size:14px;
 }
-textarea{
-  width:100%;
-  height:200px;
-  font:12px monospace;
-  background:var(--card);
-  color:var(--fg);
-  border:2px solid var(--line);
-  border-radius:10px;
-  padding:10px;
-  box-sizing:border-box;
-  resize:vertical;
+.controls{
+  display:flex;justify-content:space-between;align-items:center;
+  gap:16px;margin-top:14px;
 }
-button,label.btn{
-  display:block;
-  width:100%;
-  margin:10px 0;
-  padding:14px;
-  font:700 16px inherit;
-  font-family:inherit;
-  text-align:center;
-  background:var(--btn);
-  color:var(--btnfg);
-  border:0;
-  border-radius:12px;
-  cursor:pointer;
-  -webkit-appearance:none;
-  appearance:none;
+.pad{display:grid;grid-template-columns:repeat(3,52px);gap:5px}
+button{
+  font:inherit;color:#f7efcf;background:#3d6460;
+  border:2px solid #85a493;border-radius:10px;
+  padding:12px;cursor:pointer;touch-action:manipulation;
 }
-button.sub,label.sub{
-  background:transparent;
-  color:var(--fg);
-  border:2px solid var(--line);
-}
-input[type=file]{display:none}
-#err{
-  color:var(--danger);
-  font-weight:700;
-  min-height:1.2em;
-}
-#frame{
-  position:fixed;
-  inset:0;
-  width:100%;
-  height:100vh;
-  height:100dvh;
-  max-height:-webkit-fill-available;
-  border:0;
-  background:#172e30;
-  z-index:50;
-  display:block;
+button:active{background:#668d73}
+button:disabled{opacity:.45;cursor:default}
+.pad button{height:48px;padding:0;touch-action:none;user-select:none}
+#action{min-height:64px;min-width:110px;background:#80664a}
+footer{font-size:11px;color:#b8cbb8;margin-top:14px}
+.overlay{
+  position:fixed;inset:0;background:#112929df;
+  display:grid;place-items:center;padding:16px;z-index:10;
 }
 [hidden]{display:none!important}
-@media (max-width:480px){
-  main{padding:12px 12px 18px}
-  h1{font-size:18px;margin-bottom:6px}
-  p{font-size:13px}
-  textarea{height:180px}
-  button,label.btn{padding:13px 12px;font-size:15px}
+.card{
+  width:min(100%,460px);max-height:90vh;overflow:auto;
+  background:#f4e8c5;color:#30423b;
+  padding:20px;border:4px solid #bfa776;border-radius:16px;
+  box-shadow:0 20px 60px #0007;
 }
+.card h2{margin:0 0 14px;font-size:21px}
+.choices{display:grid;gap:10px}
+.choices button{text-align:left}
+.monster{
+  text-align:center;font-size:58px;background:#d5dcaf;
+  border-radius:12px;padding:12px;margin:12px 0;
+}
+.hp{height:12px;background:#c8c4aa;border-radius:6px;overflow:hidden;margin:6px 0 14px}
+.hp i{display:block;height:100%;background:#629e68;transition:width .2s}
+#log{min-height:64px;white-space:pre-line;font-size:14px;line-height:1.6}
+.actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+#closeBattle{width:100%;margin-top:10px}
+#battleNote{font-size:12px}
 </style>
 </head>
 <body>
-<main id="ui">
-  <h1>🌿 ゲームローダー</h1>
-  <p>ゲームのHTMLコードを貼り付けるか、ファイルを選んでください。スマホ用の調整は自動で入ります。</p>
-  <p>一度読み込むと端末に記憶されるので、次からは「つづきから遊ぶ」だけです。</p>
-
-  <div id="saved" hidden>
-    <button id="playSaved">▶ 記憶したゲームを遊ぶ</button>
-    <button class="sub" id="clearSaved">記憶を消して貼り直す</button>
+<main>
+  <h1>🌿 こもれびの冒険</h1>
+  <p class="subtitle">小さな村から、相棒との旅へ。</p>
+  <div id="status">冒険の準備中……</div>
+  <div class="stage">
+    <canvas id="game" width="640" height="448"
+      tabindex="0" aria-label="村のマップ"></canvas>
   </div>
-
-  <div id="input">
-    <textarea id="code" placeholder="ここにHTMLコードを貼り付け"></textarea>
-    <button id="playPasted">▶ 貼り付けたコードで遊ぶ</button>
-    <label class="btn sub" for="file">📁 HTMLファイルを選ぶ</label>
-    <input type="file" id="file" accept=".html,.htm,text/html,text/plain">
+  <div id="message" aria-live="polite"></div>
+  <div class="controls">
+    <div class="pad">
+      <span></span><button data-dir="up" aria-label="上">▲</button><span></span>
+      <button data-dir="left" aria-label="左">◀</button>
+      <button data-dir="down" aria-label="下">▼</button>
+      <button data-dir="right" aria-label="右">▶</button>
+    </div>
+    <button id="action">調べる</button>
   </div>
-
-  <p id="err" role="alert"></p>
+  <footer>移動：矢印 / WASD ｜ 調べる：Z / Enter ｜ セーブ未対応</footer>
 </main>
 
-<iframe id="frame" hidden title="ゲーム" allow="autoplay"></iframe>
+<div id="lab" class="overlay" hidden>
+  <section class="card" role="dialog" aria-modal="true" aria-labelledby="labTitle">
+    <h2 id="labTitle">最初の相棒を選ぼう</h2>
+    <p>コモレビ博士「いっしょに冒険する仲間を選んでね！」</p>
+    <div class="choices">
+      <button data-starter="0">🌱 コノハル — バランスのよい草の子</button>
+      <button data-starter="1">🔥 ヒノポン — 攻撃が得意な炎の子</button>
+      <button data-starter="2">💧 ミズマル — HPが高い水の子</button>
+      <button id="leaveLab">あとで選ぶ</button>
+    </div>
+  </section>
+</div>
+
+<div id="battle" class="overlay" hidden>
+  <section class="card" role="dialog" aria-modal="true" aria-labelledby="battleTitle">
+    <h2 id="battleTitle">野生のモンスター！</h2>
+    <div id="enemyInfo"></div>
+    <div class="hp"><i id="enemyBar"></i></div>
+    <div id="enemySprite" class="monster"></div>
+    <div id="allyInfo"></div>
+    <div class="hp"><i id="allyBar"></i></div>
+    <p id="log" aria-live="polite"></p>
+    <p id="battleNote"></p>
+    <div class="actions">
+      <button id="attack">たたかう</button>
+      <button id="catch">捕まえる</button>
+      <button id="run">逃げる</button>
+    </div>
+    <button id="closeBattle" hidden>探索に戻る</button>
+  </section>
+</div>
 
 <script>
 (function(){
 "use strict";
-var KEY="game-loader-html-v1";
-var $=function(id){return document.getElementById(id)};
+const $ = id => document.getElementById(id);
+const canvas = $("game");
+const ctx = canvas.getContext("2d");
+ctx.imageSmoothingEnabled = false;
 
-var PATCH=
-'<style>'+
-'html{-webkit-text-size-adjust:100%;-webkit-user-select:text;user-select:text;overscroll-behavior:none}'+
-'body{-webkit-tap-highlight-color:transparent;overscroll-behavior:none;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);margin:0;min-height:100vh;min-height:100dvh;background:#f4f1e6}'+
-'button{touch-action:manipulation}'+
-'@media (pointer:coarse),(max-width:700px){'+
-'main{padding:8px}h1{font-size:18px;margin:0 0 4px}.subtitle,footer{display:none}'+
-'#soundToggle{margin:4px 0;padding:6px 10px;font-size:12px}'+
-'#status{padding:8px;font-size:12px;line-height:1.6;margin-bottom:6px}'+
-'.extra-toolbar{margin:6px 0}'+
-'#message{min-height:56px;padding:10px;font-size:14px;line-height:1.6;margin-top:8px}'+
-'.controls{position:sticky;bottom:0;z-index:5;margin:8px -8px 0;padding:10px 14px calc(10px + env(safe-area-inset-bottom));background:#172e30ee;border-top:2px solid #3d6460}'+
-'.pad{grid-template-columns:repeat(3,66px);gap:6px}.pad button{height:62px;font-size:20px;border-radius:14px}'+
-'#action{min-width:128px;min-height:128px;border-radius:50%;font-size:18px;background:#9b7a56}'+
-'.card{max-height:92vh;max-height:92dvh;padding:14px}'+
-'.choices button,#battle .actions button{min-height:52px}#battle .actions{gap:8px}}'+
-'@media (orientation:landscape) and (max-height:520px){'+
-'main{padding:4px;max-width:none}h1,#status,#soundToggle,.extra-toolbar{display:none}'+
-'#game{max-height:calc(100dvh - 64px);width:auto;margin:0 auto}.stage{text-align:center}'+
-'#message{min-height:0;margin-top:4px;padding:6px 10px;font-size:13px}'+
-'.controls{position:fixed;left:0;right:0;bottom:0;margin:0;padding:0 16px calc(8px + env(safe-area-inset-bottom));background:none;border:0;pointer-events:none}'+
-'.controls>*{pointer-events:auto;opacity:.78}.pad{grid-template-columns:repeat(3,56px)}.pad button{height:52px}'+
-'#action{min-width:92px;min-height:92px}}'+
-'</style>'+
-'<script>'+
-'["gesturestart","gesturechange","gestureend"].forEach(function(t){document.addEventListener(t,function(e){e.preventDefault()},{passive:false})});'+
-'var _l=0;document.addEventListener("touchend",function(e){var n=Date.now();if(n-_l<350&&e.target.closest&&e.target.closest(".controls,#game")){e.preventDefault()}_l=n},{passive:false});'+
-'<\\/script>';
+const T=32, W=20, H=14;
+const p={x:7,y:10,px:224,py:320,dir:"down",moving:false};
+const directions={up:[0,-1],down:[0,1],left:[-1,0],right:[1,0]};
+const keyMap={
+  ArrowUp:"up",ArrowDown:"down",ArrowLeft:"left",ArrowRight:"right",
+  w:"up",s:"down",a:"left",d:"right"
+};
+const starters=[
+  {name:"コノハル",icon:"🌱",maxHp:30,atk:10,def:6},
+  {name:"ヒノポン",icon:"🔥",maxHp:26,atk:12,def:5},
+  {name:"ミズマル",icon:"💧",maxHp:35,atk:9,def:7}
+];
+const wildTypes=[
+  {name:"モコリ",icon:"🐾",maxHp:20,atk:7,def:4},
+  {name:"ハネピ",icon:"🐥",maxHp:18,atk:8,def:3},
+  {name:"クサモチ",icon:"🌿",maxHp:23,atk:6,def:5}
+];
+let partner=null, party=[], balls=5, enemy=null;
+let mode="map", pressed=[], touch="", busy=false, ended=false;
+let safe=0, grassCount=0, clock=0, last=0;
 
-function build(html){
-  var out=html||"";
-  out=out.replace(/<meta[^>]+name=["']viewport["'][^>]*>/i,
-    '<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no">');
-  var i=out.toLowerCase().lastIndexOf("</body>");
-  return i>=0 ? out.slice(0,i)+PATCH+out.slice(i) : out+PATCH;
+function say(text){$("message").textContent=text}
+function clearInput(){pressed=[];touch=""}
+function status(){
+  $("status").textContent=partner
+    ? partner.icon+" "+partner.name+" Lv."+partner.level+
+      " ｜ HP "+partner.hp+"/"+partner.maxHp+
+      " ｜ EXP "+partner.exp+"/"+partner.level*8+
+      " ｜ ボール "+balls+"個 ｜ 仲間 "+party.length+"/6"
+    : "相棒：まだいません ｜ 左上の研究所へ行こう";
 }
-function play(html){
-  var f=$("frame");
-  f.srcdoc=build(html);
-  f.hidden=false;
-  $("ui").hidden=true;
+function tile(x,y){
+  if(x<=0||y<=0||x>=W-1||y>=H-1)return "tree";
+  if(x>=2&&x<=5&&y>=2&&y<=4)return "house";
+  if(x>=15&&x<=18&&y>=8&&y<=11)return "water";
+  if(x>=13&&x<=17&&y>=2&&y<=5)return "grass";
+  if(x===7||y===7||(x===4&&y>=5&&y<=7)||
+     (y===10&&x>=4&&x<=12))return "path";
+  return "ground";
 }
-function store(html){
-  try{localStorage.setItem(KEY,html);return true}catch(e){return false}
+function blocked(x,y){
+  return ["tree","house","water"].includes(tile(x,y))||
+    (x===10&&y===6)||(x===7&&y===5);
 }
-function load(){
-  try{return localStorage.getItem(KEY)}catch(e){return null}
+function heal(){
+  party.forEach(m=>m.hp=m.maxHp);
+  balls=5;status();
 }
-function check(html){
-  if(!html||html.length<500||!/<(html|canvas|body)/i.test(html)){
-    $("err").textContent="ゲームのHTMLコードに見えません。全体をコピーできているか確認してください。";
-    return false;
+function openLab(){
+  clearInput();
+  if(partner){
+    heal();
+    say("博士：みんなのHPを全回復！ ボールも5個に補充したよ。");
+  }else{
+    mode="lab";$("lab").hidden=false;
+    document.querySelector("[data-starter]").focus();
   }
-  $("err").textContent="";
-  return true;
 }
-function start(html){
-  if(!check(html))return;
-  if(!store(html))$("err").textContent="";
-  play(html);
+function closeLab(){
+  $("lab").hidden=true;mode="map";clearInput();
+  canvas.focus({preventScroll:true});
 }
-var saved=load();
-if(saved){
-  $("saved").hidden=false;
-  $("input").hidden=true;
+function interact(){
+  if(mode!=="map"||p.moving)return;
+  if(p.x===4&&p.y===5){openLab();return}
+  if(Math.abs(p.x-10)+Math.abs(p.y-6)===1){
+    say("ミナ：右上の濃い草むらでモンスターに会えるよ！ HPが減ったら研究所へ。");
+    return;
+  }
+  const [dx,dy]=directions[p.dir];
+  const x=p.x+dx,y=p.y+dy;
+  if(x===7&&y===5){
+    say("案内板：左上＝研究所 ／ 右上＝草むら。研究所の矢印の上で「調べる」！");
+  }else if(tile(x,y)==="house"){
+    say("研究所の入り口は建物の下側。矢印のマスで「調べる」を押そう。");
+  }else{
+    say(partner
+      ? "相棒と歩く村。右上の草むらで野生のモンスターを探そう！"
+      : "まずは左上の研究所へ。扉のすぐ下の矢印が目印だよ。");
+  }
 }
-$("playSaved").onclick=function(){var s=load();if(s)play(s)};
-$("clearSaved").onclick=function(){
-  try{localStorage.removeItem(KEY)}catch(e){}
-  $("saved").hidden=true;$("input").hidden=false;
+document.querySelectorAll("[data-starter]").forEach(button=>{
+  button.onclick=()=>{
+    if(partner)return;
+    const s=starters[Number(button.dataset.starter)];
+    partner={...s,hp:s.maxHp,level:5,exp:0};
+    party.push(partner);safe=3;status();closeLab();
+    say("博士："+partner.name+"が仲間になった！ ボールは5個。右上の草むらへ行ってみよう！");
+  };
+});
+$("leaveLab").onclick=closeLab;
+$("action").onclick=interact;
+
+function chance(){return .25+(1-enemy.hp/enemy.maxHp)*.65}
+function syncBattle(){
+  $("enemyInfo").textContent=enemy.name+" Lv."+enemy.level+
+    " ｜ HP "+enemy.hp+"/"+enemy.maxHp;
+  $("allyInfo").textContent=partner.icon+" "+partner.name+
+    " Lv."+partner.level+" ｜ HP "+partner.hp+"/"+partner.maxHp;
+  $("enemyBar").style.width=(100*enemy.hp/enemy.maxHp)+"%";
+  $("allyBar").style.width=(100*partner.hp/partner.maxHp)+"%";
+  $("attack").disabled=busy||ended;
+  $("catch").disabled=busy||ended||balls===0||party.length>=6;
+  $("run").disabled=busy||ended;
+  $("catch").textContent="捕まえる（"+balls+"個）";
+  $("closeBattle").hidden=!ended;
+  $("battleNote").textContent=ended ? "探索に戻って冒険を続けよう。"
+    :party.length>=6 ? "仲間がいっぱいです。最大6匹まで。"
+    :balls===0 ? "ボールがありません。研究所で補充できます。"
+    :"捕獲成功率：約"+Math.round(chance()*100)+"%。HPを減らすと捕まえやすい！";
+  status();
+}
+function log(text){$("log").textContent=text}
+function append(text){$("log").textContent+="\n"+text}
+function encounter(){
+  const s=wildTypes[Math.floor(Math.random()*wildTypes.length)];
+  const level=2+Math.floor(Math.random()*3);
+  enemy={...s,level,maxHp:s.maxHp+level,hp:s.maxHp+level,exp:0};
+  mode="battle";busy=false;ended=false;grassCount=0;clearInput();
+  $("battleTitle").textContent="野生の"+enemy.name+"が現れた！";
+  $("enemySprite").textContent=enemy.icon;
+  log("いっておいで、"+partner.name+"！");
+  syncBattle();$("battle").hidden=false;$("attack").focus();
+}
+// 通常攻撃の計算は維持し、技と防御の補正だけ追加
+let movePower = 1;
+let guarding = false;
+
+function damage(a, b) {
+  const base = Math.max(
+    2,
+    Math.floor(a.atk + a.level * .5 - b.def * .6 + Math.random() * 4)
+  );
+
+  if (a === partner) {
+    return Math.max(2, Math.floor(base * movePower));
+  }
+
+  if (a === enemy && guarding) {
+    guarding = false;
+    return Math.max(1, Math.floor(base * .35));
+  }
+
+  return base;
+}
+
+function finish(text){
+  append(text);busy=false;ended=true;syncBattle();
+  $("closeBattle").focus();
+}
+function enemyTurn(){
+  setTimeout(()=>{
+    const amount=Math.min(partner.hp,damage(enemy,partner));
+    partner.hp-=amount;
+    append(enemy.name+"の攻撃！ "+amount+"ダメージ。");
+    if(partner.hp<=0){
+      finish("相棒は力尽きた……。探索に戻ると研究所で回復します。");
+    }else{
+      busy=false;syncBattle();
+    }
+  },550);
+}
+$("attack").onclick=()=>{
+  if(mode!=="battle"||busy||ended)return;
+  busy=true;
+  const amount=Math.min(enemy.hp,damage(partner,enemy));
+  enemy.hp-=amount;
+  log(partner.name+"の攻撃！ "+amount+"ダメージ。");
+  syncBattle();
+  if(enemy.hp===0){
+    const exp=enemy.level*5+8;
+    partner.exp+=exp;
+    let text=enemy.name+"を倒した！ 経験値を"+exp+"獲得！";
+    while(partner.exp>=partner.level*8){
+      partner.exp-=partner.level*8;partner.level++;
+      partner.maxHp+=3;partner.hp=Math.min(partner.maxHp,partner.hp+3);
+      partner.atk+=2;partner.def++;
+      text+="\nレベルアップ！ Lv."+partner.level+"になった！";
+    }
+    finish(text);
+  }else enemyTurn();
 };
-$("playPasted").onclick=function(){start($("code").value)};
-$("file").onchange=function(){
-  var file=this.files&&this.files[0];
-  if(!file)return;
-  var r=new FileReader();
-  r.onload=function(){start(String(r.result))};
-  r.onerror=function(){$("err").textContent="ファイルを読み込めませんでした。"};
-  r.readAsText(file);
+$("catch").onclick=()=>{
+  if(mode!=="battle"||busy||ended||balls<=0||party.length>=6)return;
+  busy=true;balls--;log("ボールを投げた……！");syncBattle();
+  setTimeout(()=>{
+    if(Math.random()<chance()){
+      party.push({...enemy,hp:enemy.maxHp});
+      finish(enemy.name+"を捕まえた！\n仲間："+party.map(m=>m.name).join("・"));
+    }else{
+      append("ボールから出てしまった！");enemyTurn();
+    }
+  },650);
 };
+$("run").onclick=()=>{
+  if(mode!=="battle"||busy||ended)return;
+  log("無事に逃げられた！");
+  finish("このバージョンでは必ず逃げられます。");
+};
+$("closeBattle").onclick=()=>{
+  if(!ended)return;
+  const lost=partner.hp<=0;
+  if(lost){
+    heal();p.x=4;p.y=5;p.px=128;p.py=160;p.dir="up";p.moving=false;
+  }
+  $("battle").hidden=true;mode="map";safe=5;clearInput();status();
+  say(lost ? "博士：おかえり。全員回復したよ！ ボールも5個に補充した。"
+    : "冒険を続けよう！ 回復とボール補充は研究所の扉で「調べる」。");
+  canvas.focus({preventScroll:true});
+};
+
+function rect(x,y,w,h,color){
+  ctx.fillStyle=color;ctx.fillRect(Math.round(x),Math.round(y),w,h);
+}
+function tree(x,y){
+  rect(x+12,y+18,8,14,"#796047");
+  rect(x+2,y+13,28,14,"#326649");
+  rect(x+2,y+6,28,16,"#49854c");
+  rect(x+7,y+1,19,12,"#6a9e58");
+  rect(x+10,y+3,11,3,"#91b971");
+}
+function drawTile(x,y){
+  const a=x*T,b=y*T,t=tile(x,y);
+  rect(a,b,T,T,(x+y)%2 ? "#94bf79":"#8bb772");
+  rect(a+((x*7+y*11)%24),b+12,3,2,"#78a55e");
+  if(t==="path"){
+    rect(a,b,T,T,"#dfcc9b");
+    rect(a+7,b+8,3,2,"#c4ae7c");
+    rect(a+23,b+25,4,2,"#eedcaf");
+  }
+  if(t==="tree")tree(a,b);
+  if(t==="water"){
+    rect(a,b,T,T,"#509ba9");
+    const offset=Math.sin(clock*2+x+y)*3;
+    rect(a+6+offset,b+10,12,2,"#9ed9d4");
+    rect(a+17-offset,b+23,8,2,"#79c4c5");
+  }
+  if(t==="grass"){
+    rect(a,b,T,T,"#609751");
+    for(let i=0;i<4;i++){
+      const gx=a+3+(i%2)*15,gy=b+3+Math.floor(i/2)*15;
+      rect(gx+4,gy+4,3,10,"#367547");
+      rect(gx,gy+2,3,7,"#a1cb74");
+      rect(gx+8,gy,3,9,"#88ba62");
+    }
+  }
+  if(t==="ground"&&(x*13+y*7)%17===0){
+    rect(a+16,b+19,2,7,"#598447");
+    rect(a+13,b+16,8,4,"#ffe3a3");
+    rect(a+15,b+14,4,8,"#fff0bd");
+  }
+}
+function house(){
+  rect(66,148,128,15,"#63894f");
+  rect(68,95,120,63,"#ecd8aa");
+  rect(68,150,120,8,"#b19a73");
+  rect(60,85,136,18,"#875044");
+  rect(66,73,124,17,"#b86953");
+  rect(78,61,100,16,"#cf8663");
+  rect(90,55,76,9,"#e6a777");
+  for(let i=0;i<6;i++)rect(75+i*19,83,12,2,"#edac81");
+  [80,160].forEach(x=>{
+    rect(x,112,22,24,"#977d5a");
+    rect(x+3,115,16,17,"#83b9bb");
+    rect(x+10,115,2,17,"#eee6c8");
+    rect(x+3,122,16,2,"#eee6c8");
+  });
+  rect(132,116,24,42,"#73583f");
+  rect(136,120,16,38,"#ac8257");
+  rect(148,139,3,3,"#f8e5a0");
+  rect(128,158,32,4,"#efe0b6");
+  const y=173+Math.sin(clock*3)*2;
+  rect(137,y,14,3,"#fff4c5");
+  rect(140,y-3,8,3,"#fff4c5");
+  rect(143,y-6,2,3,"#fff4c5");
+  ctx.fillStyle="#583e32";ctx.font="bold 10px sans-serif";
+  ctx.textAlign="center";ctx.fillText("LAB",112,111);
+}
+function person(x,y,hero,dir,moving){
+  x=Math.round(x);
+  const base=y;
+  y=Math.round(y-(moving?Math.abs(Math.sin(clock*18))*2:0));
+  ctx.fillStyle="#284a3d44";ctx.beginPath();
+  ctx.ellipse(x+16,base+29,11,4,0,0,Math.PI*2);ctx.fill();
+  rect(x+9,y+24,6,7,"#374753");
+  rect(x+18,y+24,6,7,"#374753");
+  rect(x+8,y+15,17,11,hero?"#d1785b":"#578dab");
+  rect(x+5,y+18,4,7,"#edc99a");
+  rect(x+25,y+18,3,7,"#edc99a");
+  rect(x+9,y+5,16,12,"#f5d4a2");
+  rect(x+8,y+2,18,6,"#69513e");
+  if(hero){
+    rect(x+7,y,20,6,"#f6e1ac");
+    rect(x+5,y+5,24,4,"#c7a369");
+  }else{
+    rect(x+6,y+6,4,11,"#69513e");
+    rect(x+24,y+6,4,11,"#69513e");
+  }
+  if(dir==="up"){
+    rect(x+10,y+9,14,7,"#69513e");
+    if(hero)rect(x+11,y+18,11,9,"#c2bc7b");
+  }else{
+    if(dir!=="right")rect(x+12,y+11,2,3,"#334437");
+    if(dir!=="left")rect(x+21,y+11,2,3,"#334437");
+  }
+}
+function draw(){
+  for(let y=0;y<H;y++)for(let x=0;x<W;x++)drawTile(x,y);
+  const objects=[
+    {depth:162,paint:house},
+    {depth:190,paint:()=>{
+      rect(238,178,5,14,"#876b47");
+      rect(227,163,27,18,"#876b47");
+      rect(229,165,23,13,"#ead7aa");
+      rect(233,169,15,2,"#98805c");
+      rect(233,173,10,2,"#98805c");
+    }},
+    {depth:222,paint:()=>person(320,192,false,"down",false)},
+    {depth:p.py+30,paint:()=>person(p.px,p.py,true,p.dir,p.moving)}
+  ];
+  objects.sort((a,b)=>a.depth-b.depth).forEach(o=>o.paint());
+}
+function update(dt){
+  clock+=dt;
+  if(mode!=="map")return;
+  if(p.moving){
+    const dx=p.x*T-p.px,dy=p.y*T-p.py;
+    const distance=Math.hypot(dx,dy),step=180*dt;
+    if(distance<=step){
+      p.px=p.x*T;p.py=p.y*T;p.moving=false;
+      if(partner){
+        if(safe>0)safe--;
+        else if(tile(p.x,p.y)==="grass"){
+          grassCount++;
+          if(Math.random()<.18||grassCount>=7)encounter();
+        }
+      }
+    }else{
+      p.px+=dx/distance*step;p.py+=dy/distance*step;
+    }
+  }
+  if(mode!=="map"||p.moving)return;
+  const dir=touch||pressed[pressed.length-1];
+  if(!dir)return;
+  p.dir=dir;
+  const [dx,dy]=directions[dir],x=p.x+dx,y=p.y+dy;
+  if(!blocked(x,y)){p.x=x;p.y=y;p.moving=true}
+}
+function normalize(e){return e.key.length===1?e.key.toLowerCase():e.key}
+window.addEventListener("keydown",e=>{
+  if(mode!=="map")return;
+  if(e.target.matches("input,textarea,select")||e.target.isContentEditable)return;
+  const key=normalize(e),dir=keyMap[key];
+  if(dir){
+    e.preventDefault();
+    if(!pressed.includes(dir))pressed.push(dir);
+  }
+  if(key==="z"||key==="Enter"||key===" "){
+    if(e.target.closest("button")&&key!=="z")return;
+    e.preventDefault();if(!e.repeat)interact();
+  }
+});
+window.addEventListener("keyup",e=>{
+  const dir=keyMap[normalize(e)];
+  pressed=pressed.filter(d=>d!==dir);
+});
+window.addEventListener("blur",clearInput);
+document.addEventListener("visibilitychange",()=>{
+  if(document.hidden)clearInput();
+});
+document.querySelectorAll("[data-dir]").forEach(button=>{
+  button.addEventListener("pointerdown",e=>{
+    e.preventDefault();if(mode!=="map")return;
+    button.setPointerCapture(e.pointerId);touch=button.dataset.dir;
+  });
+  const release=()=>{if(touch===button.dataset.dir)touch=""};
+  button.addEventListener("pointerup",release);
+  button.addEventListener("pointercancel",release);
+  button.addEventListener("lostpointercapture",release);
+});
+canvas.addEventListener("pointerdown",()=>canvas.focus({preventScroll:true}));
+function loop(now){
+  const dt=last?Math.min((now-last)/1000,.05):0;
+  last=now;update(dt);draw();requestAnimationFrame(loop);
+}/* 技システム：既存の戦闘・経験値・演出を利用 */
+const moveNames = {
+  "コノハル": "このはカッター",
+  "ヒノポン": "ひのこ",
+  "ミズマル": "みずでっぽう",
+  "モコリ": "もこもこタックル",
+  "ハネピ": "つばさのかぜ",
+  "クサモチ": "くさだんご"
+};
+
+const movePanel = document.createElement("div");
+movePanel.className = "actions";
+movePanel.style.margin = "10px 0";
+movePanel.hidden = true;
+movePanel.setAttribute("role", "group");
+movePanel.setAttribute("aria-label", "使う技");
+
+const moveHelp = document.createElement("p");
+moveHelp.style.cssText =
+  "font-size:12px;line-height:1.6;margin:8px 0";
+moveHelp.textContent =
+  "属性技は威力1.35倍・命中85%。ひと休みは最大HPの30%回復。" +
+  "身を守ると次の攻撃のダメージを約65%軽減。";
+moveHelp.hidden = true;
+
+const moveButtons = {};
+
+[
+  ["normal", "たいあたり"],
+  ["special", "属性技"],
+  ["rest", "ひと休み"],
+  ["guard", "身を守る"]
+].forEach(([key, label]) => {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.textContent = label;
+  moveButtons[key] = button;
+  movePanel.appendChild(button);
+});
+
+const cancelMove = document.createElement("button");
+cancelMove.type = "button";
+cancelMove.textContent = "技選択を閉じる";
+cancelMove.style.gridColumn = "1 / -1";
+movePanel.appendChild(cancelMove);
+
+const mainActions = $("attack").parentElement;
+mainActions.before(moveHelp, movePanel);
+
+// 元の攻撃処理を保持。
+// ダメージ・勝利・経験値・レベルアップの処理を使い続ける。
+const originalAttack = $("attack").onclick;
+let selectingMove = false;
+
+function closeMovePanel() {
+  selectingMove = false;
+  movePanel.hidden = true;
+  moveHelp.hidden = true;
+  $("attack").textContent = "たたかう";
+}
+
+function refreshMovePanel() {
+  if (mode !== "battle" || busy || ended) {
+    closeMovePanel();
+  }
+
+  const locked = mode !== "battle" || busy || ended;
+
+  Object.values(moveButtons).forEach(button => {
+    button.disabled = locked;
+  });
+
+  moveButtons.rest.disabled =
+    locked || !partner || partner.hp >= partner.maxHp;
+
+  moveButtons.special.textContent = partner
+    ? (moveNames[partner.name] || "全力アタック")
+    : "属性技";
+
+  cancelMove.disabled = locked;
+}
+
+$("attack").onclick = () => {
+  if (mode !== "battle" || busy || ended) return;
+
+  if (selectingMove) {
+    closeMovePanel();
+    return;
+  }
+
+  selectingMove = true;
+  movePanel.hidden = false;
+  moveHelp.hidden = false;
+  $("attack").textContent = "技を閉じる";
+  refreshMovePanel();
+  moveButtons.normal.focus({ preventScroll: true });
+};
+
+cancelMove.onclick = () => {
+  closeMovePanel();
+  $("attack").focus({ preventScroll: true });
+};
+
+function useMove(kind) {
+  if (mode !== "battle" || busy || ended || !partner) return;
+  if (kind === "rest" && partner.hp >= partner.maxHp) return;
+
+  closeMovePanel();
+  guarding = false;
+  movePower = 1;
+
+  if (kind === "rest") {
+    busy = true;
+
+    const recovery = Math.min(
+      partner.maxHp - partner.hp,
+      Math.max(1, Math.floor(partner.maxHp * .3))
+    );
+
+    partner.hp += recovery;
+    log(
+      partner.name + "はひと休み！\nHPが" +
+      recovery + "回復した。"
+    );
+    syncBattle();
+    enemyTurn();
+    return;
+  }
+
+  if (kind === "guard") {
+    busy = true;
+    guarding = true;
+    log(partner.name + "は身を守った！\n次の攻撃に備えている。");
+    syncBattle();
+    enemyTurn();
+    return;
+  }
+
+  const name = kind === "special"
+    ? (moveNames[partner.name] || "全力アタック")
+    : "たいあたり";
+
+  if (kind === "special" && Math.random() >= .85) {
+    busy = true;
+    log(partner.name + "の" + name + "！\n攻撃は外れた！");
+    syncBattle();
+    enemyTurn();
+    return;
+  }
+
+  movePower = kind === "special" ? 1.35 : 1;
+
+  try {
+    originalAttack();
+
+    // 元のログの攻撃名だけ変更する。
+    // 勝利・経験値・レベルアップの文章は残す。
+    $("log").textContent = $("log").textContent.replace(
+      partner.name + "の攻撃！",
+      partner.name + "の" + name + "！"
+    );
+  } finally {
+    movePower = 1;
+  }
+}
+
+Object.entries(moveButtons).forEach(([kind, button]) => {
+  button.onclick = () => useMove(kind);
+});
+
+// 捕獲や逃走を選んだときも技選択を閉じる。
+// 既存の処理はそのまま実行する。
+["catch", "run", "closeBattle"].forEach(id => {
+  const button = $(id);
+  const original = button.onclick;
+
+  button.onclick = function(event) {
+    if (busy || (id !== "closeBattle" && ended)) return;
+
+    closeMovePanel();
+    guarding = false;
+    movePower = 1;
+    return original.call(this, event);
+  };
+});
+
+// 敵のターン終了や戦闘開始に合わせて表示を更新
+new MutationObserver(refreshMovePanel).observe($("attack"), {
+  attributes: true,
+  attributeFilter: ["disabled"]
+});
+
+new MutationObserver(() => {
+  closeMovePanel();
+  guarding = false;
+  movePower = 1;
+  refreshMovePanel();
+}).observe($("battle"), {
+  attributes: true,
+  attributeFilter: ["hidden"]
+});
+
+/* セーブ・つづきから */
+const SAVE_KEY = "komorebi-adventure-save-v1";
+
+const saveArea = document.createElement("div");
+saveArea.style.cssText =
+  "display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:10px 0";
+
+const saveButton = document.createElement("button");
+saveButton.type = "button";
+saveButton.textContent = "💾 セーブ";
+
+const saveLabel = document.createElement("span");
+saveLabel.style.cssText =
+  "font-size:12px;color:#c7d9bd;line-height:1.6";
+saveLabel.setAttribute("role", "status");
+saveLabel.textContent = "まだ保存していません";
+
+saveArea.append(saveButton, saveLabel);
+$("status").after(saveArea);
+
+const footer = document.querySelector("footer");
+if (footer) {
+  footer.textContent =
+    "移動：矢印 / WASD ｜ 調べる：Z / Enter ｜ セーブ：探索中にボタン";
+}
+
+function saveTimeText(value) {
+  return new Date(value).toLocaleString("ja-JP");
+}
+
+function saveAdventure() {
+  clearInput();
+
+  if (mode !== "map") {
+    say("セーブは探索中にできます。研究所やバトル画面を閉じてね。");
+    return;
+  }
+
+  if (p.moving) {
+    say("歩き終わってから、もう一度セーブを押してね。");
+    return;
+  }
+
+  const data = {
+    version: 1,
+    savedAt: Date.now(),
+    player: {
+      x: p.x,
+      y: p.y,
+      dir: p.dir
+    },
+    party: party.map(mon => ({ ...mon })),
+    partnerIndex: partner ? party.indexOf(partner) : -1,
+    balls: balls
+  };
+
+  try {
+    localStorage.setItem(SAVE_KEY, JSON.stringify(data));
+    saveLabel.textContent =
+      "保存済み：" + saveTimeText(data.savedAt);
+    say("冒険をセーブしたよ！ 次に開くと、この続きから始まります。");
+  } catch (error) {
+    saveLabel.textContent = "保存できませんでした";
+    say(
+      "セーブできませんでした。ブラウザの保存設定や空き容量を確認してね。" +
+      "今の冒険はそのまま続けられます。"
+    );
+  }
+
+  canvas.focus({ preventScroll: true });
+}
+
+saveButton.addEventListener("click", saveAdventure);
+
+function validInteger(value, min, max) {
+  return Number.isSafeInteger(value) &&
+    value >= min && value <= max;
+}
+
+/* 読み込み前に内容を確認する */
+function validateSave(data) {
+  if (!data || data.version !== 1) {
+    throw new Error("保存形式が違います");
+  }
+
+  if (!validInteger(data.savedAt, 0, 8640000000000000)) {
+    throw new Error("保存日時が不正です");
+  }
+
+  const point = data.player;
+
+  if (
+    !point ||
+    !validInteger(point.x, 1, W - 2) ||
+    !validInteger(point.y, 1, H - 2) ||
+    !Object.prototype.hasOwnProperty.call(directions, point.dir) ||
+    blocked(point.x, point.y)
+  ) {
+    throw new Error("プレイヤーの位置が不正です");
+  }
+
+  if (
+    !Array.isArray(data.party) ||
+    data.party.length > 6 ||
+    !validInteger(data.balls, 0, 5)
+  ) {
+    throw new Error("仲間かボール数が不正です");
+  }
+
+  const types = [...starters, ...wildTypes];
+
+  const restoredParty = data.party.map(mon => {
+    if (!mon || typeof mon !== "object") {
+      throw new Error("仲間のデータが不正です");
+    }
+
+    const species = types.find(type => type.name === mon.name);
+
+    if (
+      !species ||
+      !validInteger(mon.level, 1, 1000000) ||
+      !validInteger(mon.maxHp, 1, 10000000) ||
+      !validInteger(mon.hp, 0, mon.maxHp) ||
+      !validInteger(mon.atk, 1, 10000000) ||
+      !validInteger(mon.def, 0, 10000000) ||
+      !validInteger(mon.exp, 0, mon.level * 8 - 1)
+    ) {
+      throw new Error("仲間の能力値が不正です");
+    }
+
+    return {
+      name: species.name,
+      icon: species.icon,
+      level: mon.level,
+      maxHp: mon.maxHp,
+      hp: mon.hp,
+      atk: mon.atk,
+      def: mon.def,
+      exp: mon.exp
+    };
+  });
+
+  if (restoredParty.length === 0) {
+    if (data.partnerIndex !== -1) {
+      throw new Error("相棒のデータが不正です");
+    }
+  } else {
+    if (
+      !validInteger(data.partnerIndex, 0, restoredParty.length - 1) ||
+      restoredParty[data.partnerIndex].hp <= 0
+    ) {
+      throw new Error("相棒のデータが不正です");
+    }
+  }
+
+  return restoredParty;
+}
+
+function restoreAdventure() {
+  let raw;
+
+  try {
+    raw = localStorage.getItem(SAVE_KEY);
+  } catch (error) {
+    saveLabel.textContent = "ブラウザの保存領域を利用できません";
+    return "保存領域を読み込めませんでした。今回は最初から始めます。";
+  }
+
+  if (raw === null) {
+    return "ようこそ！ 左上の研究所へ行こう。" +
+      "扉の下の白い矢印で「調べる」を押すと、相棒を選べるよ。";
+  }
+
+  try {
+    const data = JSON.parse(raw);
+    const restoredParty = validateSave(data);
+
+    // 検証が終わってからゲームの状態に反映
+    party = restoredParty;
+    partner = data.partnerIndex === -1
+      ? null
+      : party[data.partnerIndex];
+    balls = data.balls;
+
+    p.x = data.player.x;
+    p.y = data.player.y;
+    p.px = p.x * T;
+    p.py = p.y * T;
+    p.dir = data.player.dir;
+    p.moving = false;
+
+    mode = "map";
+    enemy = null;
+    busy = false;
+    ended = false;
+    safe = 5;
+    grassCount = 0;
+    clearInput();
+
+    $("lab").hidden = true;
+    $("battle").hidden = true;
+
+    saveLabel.textContent =
+      "読み込み済み：" + saveTimeText(data.savedAt);
+
+    return partner
+      ? "おかえり！ " + partner.name +
+        "と冒険の続きを始めよう。進んだらセーブを忘れずに！"
+      : "おかえり！ 保存した場所から再開したよ。研究所で相棒を選ぼう！";
+  } catch (error) {
+    saveLabel.textContent = "保存データを読み込めませんでした";
+
+    return "保存データの形式や内容を確認できなかったため、最初から始めます。" +
+      "元の保存データは残していますが、セーブを押すと上書きされます。";
+  }
+}
+/* ===== マップ・仲間・ショップ・ボス・捕獲結果の拡張 ===== */
+let area = 0;
+let money = 300;
+let potions = 3;
+let bossDefeated = false;
+let bossBattle = false;
+let rewardGiven = false;
+
+const areaNames = [
+  "コモレビの村",
+  "ホタルの森",
+  "しぶき海岸",
+  "鉄風の工事峠"
+];
+
+const addedTypes = [
+  {name:"イシコロガ",icon:"🪨",maxHp:34,atk:10,def:11},
+  {name:"ホタルン",icon:"✨",maxHp:25,atk:12,def:6},
+  {name:"アワネコ",icon:"🫧",maxHp:32,atk:11,def:7},
+  {name:"ヨルフク",icon:"🦉",maxHp:30,atk:13,def:7},
+  {name:"コゲタヌ",icon:"🔥",maxHp:33,atk:14,def:8},
+  {name:"ツララビ",icon:"❄️",maxHp:29,atk:14,def:7},
+  {name:"ハガネムシ",icon:"🪲",maxHp:38,atk:12,def:13},
+  {name:"穂谷野",icon:"👷",maxHp:42,atk:16,def:11}
+];
+
+wildTypes.push(...addedTypes);
+
+Object.assign(moveNames, {
+  "イシコロガ":"いわころがし",
+  "ホタルン":"ほたるフラッシュ",
+  "アワネコ":"あわのつめ",
+  "ヨルフク":"よるのつばさ",
+  "コゲタヌ":"こげび",
+  "ツララビ":"つららキック",
+  "ハガネムシ":"こうてつバサミ",
+  "穂谷野":"職人の一撃"
+});
+
+const speciesList = [...starters, ...wildTypes];
+
+/* 追加イラスト。既存6体のイラストは変更しない */
+window.komorebiExtraArt = function(name) {
+  const names = addedTypes.map(m => m.name);
+  if (!names.includes(name) && name !== "鈴木太間") return "";
+
+  const outline =
+    'stroke="#354d43" stroke-width="3" stroke-linejoin="round"';
+  const face = `
+    <ellipse cx="49" cy="70" rx="4" ry="6" fill="#30443b"/>
+    <ellipse cx="79" cy="70" rx="4" ry="6" fill="#30443b"/>
+    <path d="M58 83Q64 89 70 83" fill="none" ${outline}/>
+  `;
+  let shape = "";
+
+  switch (name) {
+    case "イシコロガ":
+      shape = `
+        <path d="M24 58L44 32L82 29L106 57L98 99L68 113L32 100Z"
+          fill="#a1a89e" ${outline}/>
+        <path d="M44 32L54 54L25 59M82 29L74 50L104 58
+          M34 100L48 89M98 99L83 90"
+          fill="none" stroke="#788477" stroke-width="4"/>
+        ${face}`;
+      break;
+    case "ホタルン":
+      shape = `
+        <ellipse cx="36" cy="57" rx="22" ry="30"
+          fill="#d3eddd" ${outline}/>
+        <ellipse cx="92" cy="57" rx="22" ry="30"
+          fill="#d3eddd" ${outline}/>
+        <ellipse cx="64" cy="91" rx="25" ry="29"
+          fill="#f5e77e" ${outline}/>
+        <circle cx="64" cy="61" r="28" fill="#91bda0" ${outline}/>
+        <path d="M51 37L42 22M76 37L86 22" ${outline}/>
+        <circle cx="42" cy="20" r="5" fill="#ffe996"/>
+        <circle cx="86" cy="20" r="5" fill="#ffe996"/>
+        ${face}`;
+      break;
+    case "アワネコ":
+      shape = `
+        <path d="M33 58L29 22L54 43M76 43L99 22L97 60"
+          fill="#8ecbd3" ${outline}/>
+        <path d="M96 90Q124 64 117 101Q110 116 89 108"
+          fill="#a8dce0" ${outline}/>
+        <ellipse cx="64" cy="80" rx="37" ry="34"
+          fill="#acdfe1" ${outline}/>
+        <circle cx="20" cy="41" r="11" fill="#e4f8f3"
+          stroke="#8dbfcf" stroke-width="2"/>
+        <circle cx="107" cy="31" r="8" fill="#e4f8f3"
+          stroke="#8dbfcf" stroke-width="2"/>
+        ${face}
+        <path d="M27 81L44 85M85 85L103 81"
+          fill="none" ${outline}/>`;
+      break;
+    case "ヨルフク":
+      shape = `
+        <path d="M33 54L29 25L56 42L75 42L100 25L96 56"
+          fill="#817b9c" ${outline}/>
+        <ellipse cx="64" cy="80" rx="39" ry="37"
+          fill="#827f9f" ${outline}/>
+        <ellipse cx="49" cy="68" rx="18" ry="23" fill="#e5dbb9"/>
+        <ellipse cx="79" cy="68" rx="18" ry="23" fill="#e5dbb9"/>
+        <path d="M28 72L18 98L38 91M100 72L110 98L90 91"
+          fill="#696785" ${outline}/>
+        ${face}
+        <path d="M58 82L64 92L70 82Z" fill="#eac477"/>`;
+      break;
+    case "コゲタヌ":
+      shape = `
+        <path d="M92 88Q126 65 116 103L96 111"
+          fill="#a97556" ${outline}/>
+        <circle cx="37" cy="44" r="16" fill="#a97556" ${outline}/>
+        <circle cx="91" cy="44" r="16" fill="#a97556" ${outline}/>
+        <ellipse cx="64" cy="80" rx="38" ry="35"
+          fill="#c58f63" ${outline}/>
+        <path d="M28 61Q64 83 100 61L96 83Q64 97 32 83"
+          fill="#746154"/>
+        <ellipse cx="64" cy="100" rx="22" ry="12" fill="#efd1a0"/>
+        ${face}
+        <path d="M60 41Q43 29 61 9L66 24L76 15Q87 38 69 43"
+          fill="#f3a452" ${outline}/>`;
+      break;
+    case "ツララビ":
+      shape = `
+        <path d="M40 52L32 9L48 15L57 49M71 49L83 10L99 8L88 56"
+          fill="#d5edf1" ${outline}/>
+        <ellipse cx="64" cy="82" rx="35" ry="33"
+          fill="#dfedef" ${outline}/>
+        <path d="M36 103L25 118L54 114M76 114L103 118L92 101"
+          fill="#a3cfdf" ${outline}/>
+        <path d="M43 58L64 40L86 58" fill="#9ecce2" ${outline}/>
+        ${face}`;
+      break;
+    case "ハガネムシ":
+      shape = `
+        <path d="M37 72L15 62M35 89L13 94M44 103L26 118
+          M91 72L113 62M93 89L115 94M84 103L102 118"
+          fill="none" ${outline}/>
+        <ellipse cx="64" cy="85" rx="34" ry="32"
+          fill="#91a8ad" ${outline}/>
+        <path d="M64 57V115" fill="none" ${outline}/>
+        <path d="M43 47L38 17L55 28L64 49L73 28L90 17L85 47"
+          fill="#b8c9c9" ${outline}/>
+        <ellipse cx="64" cy="59" rx="28" ry="21"
+          fill="#bfd0cc" ${outline}/>
+        ${face}`;
+      break;
+    default: {
+      const boss = name === "鈴木太間";
+      shape = `
+        <path d="${boss
+          ? "M38 65Q22 86 34 108L94 108Q106 86 90 65Z"
+          : "M48 65L44 107L84 107L80 65Z"}"
+          fill="#6d9298" ${outline}/>
+        <path d="${boss
+          ? "M37 107L36 122L58 122L62 108M68 108L72 122L94 122L91 107"
+          : "M47 106L46 122L59 122L64 107M66 107L70 122L83 122L81 106"}"
+          fill="#455b69" ${outline}/>
+        <path d="${boss
+          ? "M36 71L21 96L30 102L44 82M91 71L106 96L97 102L84 82"
+          : "M47 70L34 97L42 102L54 78M81 70L94 97L86 102L75 78"}"
+          fill="#779da1" ${outline}/>
+        <ellipse cx="64" cy="43" rx="${boss ? 24 : 18}" ry="25"
+          fill="#efcba7" ${outline}/>
+        <path d="M${boss ? 40 : 46} 37Q43 12 64 14Q86 13
+          ${boss ? 88 : 82} 37L77 29L57 29Z"
+          fill="#3c4442"/>
+        <path d="M51 44L59 44M70 44L78 44"
+          stroke="#35443b" stroke-width="2.5" fill="none"/>
+        <path d="M64 46L62 53L66 53M58 59L70 59"
+          fill="none" stroke="#8d6a57" stroke-width="1.8"/>
+        <path d="M64 69V105M51 79H59V89H51Z
+          M70 79H78V89H70Z" fill="none" stroke="#d4dfcb" stroke-width="2"/>
+        ${boss ? '<path d="M42 26Q64 5 87 26" fill="#e9c06c" ' + outline + '/>' : ""}
+      `;
+    }
+  }
+  return `<svg class="mon-art" viewBox="0 0 128 128"
+    role="img" aria-label="${name}">
+    <ellipse cx="64" cy="122" rx="38" ry="5" fill="#304b3922"/>
+    ${shape}
+  </svg>`;
+};
+
+/* 後段の既存イラスト関数と接続する */
+function portrait(name) {
+  return window.komorebiArt
+    ? window.komorebiArt(name)
+    : window.komorebiExtraArt(name);
+}
+
+const extraStyle = document.createElement("style");
+extraStyle.textContent = `
+  .extra-toolbar{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}
+  .extra-toolbar button{padding:9px 12px;font-size:13px}
+  .party-entry{padding:12px;margin:10px 0;background:#e1dcbb;
+    border:2px solid #b8ba98;border-radius:12px}
+  .party-top{display:flex;align-items:center;gap:12px}
+  .party-top .mon-art{width:92px;height:92px;flex-shrink:0}
+  .party-entry p{margin:5px 0;font-size:13px}
+  .party-buttons{display:flex;gap:8px;flex-wrap:wrap}
+  #captureResult{z-index:1100}
+  #captureResult .card{text-align:center;border-color:#dcba53}
+  #captureResult .mon-art{width:180px;height:180px}
+  #captureResult h2{color:#806018;font-size:25px}
+  #captureResult .capture-success{font-size:18px;font-weight:bold}
+  #trainerPortrait{text-align:center}
+  #trainerPortrait .mon-art{width:115px;height:115px}
+`;
+document.head.appendChild(extraStyle);
+
+function makeOverlay(id, title) {
+  const overlay = document.createElement("div");
+  overlay.id = id;
+  overlay.className = "overlay";
+  overlay.hidden = true;
+  const card = document.createElement("section");
+  card.className = "card";
+  card.setAttribute("role", "dialog");
+  card.setAttribute("aria-modal", "true");
+  const h = document.createElement("h2");
+  h.id = id + "Title";
+  h.textContent = title;
+  card.setAttribute("aria-labelledby", h.id);
+  card.appendChild(h);
+  overlay.appendChild(card);
+  document.body.appendChild(overlay);
+  return {overlay, card};
+}
+
+function addButton(parent, text, handler) {
+  const b = document.createElement("button");
+  b.type = "button";
+  b.textContent = text;
+  b.onclick = handler;
+  parent.appendChild(b);
+  return b;
+}
+
+const roster = makeOverlay("partyPanel", "手持ちモンスター");
+const shop = makeOverlay("shopPanel", "コモレビ商店");
+const caught = makeOverlay("captureResult", "✨ 捕獲成功！");
+
+const toolbar = document.createElement("div");
+toolbar.className = "extra-toolbar";
+saveArea.after(toolbar);
+
+addButton(toolbar, "👥 手持ち", () => openParty(false));
+addButton(toolbar, "🛍 ショップ案内", () => {
+  if (mode !== "map") return;
+  say("村の左下にショップがあります。入口（4,10）で「調べる」！");
+});
+
+const battleParty = addButton(mainActions, "仲間 / 回復薬", () => {
+  openParty(true);
+});
+
+const baseStatus = status;
+status = function() {
+  baseStatus();
+  $("status").textContent +=
+    " ｜ " + areaNames[area] +
+    " ｜ " + money + "円 ｜ 回復薬 " + potions + "個";
+};
+
+const baseHeal = heal;
+heal = function() {
+  const previousBalls = balls;
+  baseHeal();
+  balls = Math.max(previousBalls, 5);
+  status();
+};
+
+/* 村の元マップを保持し、別エリアだけ追加 */
+const villageTile = tile;
+tile = function(x, y) {
+  if (x === 18 && y === 7) return "path";
+  if (area > 0 && x === 1 && y === 7) return "path";
+
+  if (area === 0) {
+    if (x >= 2 && x <= 5 && y >= 8 && y <= 9) return "house";
+    return villageTile(x, y);
+  }
+
+  if (x <= 0 || y <= 0 || x >= W-1 || y >= H-1) return "tree";
+  if (y === 7 || x === 2 || x === 17) return "path";
+
+  if (area === 1) {
+    if ((x === 8 || x === 12) && y >= 3 && y <= 5) return "tree";
+    if (x >= 4 && x <= 15 && y >= 2 && y <= 11) return "grass";
+  }
+  if (area === 2) {
+    if (y >= 10 || (x >= 12 && y <= 4)) return "water";
+    if (x >= 4 && x <= 15 && y >= 5 && y <= 9) return "grass";
+  }
+  if (area === 3) {
+    if (y === 3 && x >= 5 && x <= 12) return "water";
+    if (x >= 4 && x <= 14 && y >= 5 && y <= 11) return "grass";
+  }
+  return "ground";
+};
+
+blocked = function(x, y) {
+  return ["tree","house","water"].includes(tile(x,y)) ||
+    (area === 0 && ((x === 10 && y === 6) || (x === 7 && y === 5))) ||
+    (area === 3 && x === 16 && y === 6);
+};
+
+const originalDraw = draw;
+const originalDrawTile = drawTile;
+drawTile = function(x, y) {
+  originalDrawTile(x, y);
+  const t = tile(x,y);
+  if (area === 2 && t === "ground") {
+    rect(x*T,y*T,T,T,(x+y)%2 ? "#dec999" : "#e6d5a9");
+    rect(x*T+8,y*T+20,4,2,"#b7aa80");
+  }
+  if (area === 3 && t === "ground") {
+    rect(x*T,y*T,T,T,(x+y)%2 ? "#a5a291" : "#b2ad97");
+    rect(x*T+8,y*T+18,9,4,"#8c9084");
+  }
+  if (area === 3 && t === "water") {
+    rect(x*T,y*T,T,T,"#606f72");
+    rect(x*T+3,y*T+9,26,5,"#b8bcb0");
+    rect(x*T+3,y*T+22,26,3,"#7f8b89");
+  }
+};
+
+function mapLabel(text, x, y) {
+  ctx.font = "bold 12px sans-serif";
+  ctx.textAlign = "center";
+  ctx.fillStyle = "#183734";
+  ctx.fillRect(x-56, y-15, 112, 22);
+  ctx.fillStyle = "#fff0bf";
+  ctx.fillText(text,x,y);
+}
+
+draw = function() {
+  if (area === 0) {
+    originalDraw();
+    rect(65,260,128,56,"#e6c895");
+    rect(61,252,136,17,"#668f91");
+    rect(128,280,30,36,"#725b48");
+    mapLabel("SHOP",128,279);
+    mapLabel("調べる ↑",144,339);
+  } else {
+    for(let y=0;y<H;y++) for(let x=0;x<W;x++) drawTile(x,y);
+    if (area === 1) {
+      for(let i=0;i<12;i++) {
+        const x=90+(i*43)%460;
+        const y=65+(i*37)%270;
+        rect(x,y+Math.sin(clock*2+i)*6,3,3,"#f3ee9b");
+      }
+    }
+    if (area === 3) {
+      person(16*T,6*T,false,"down",false);
+      rect(16*T+5,6*T+16,24,12,"#6d9298");
+      mapLabel(bossDefeated ? "鈴木太間 ★" : "鈴木太間",16*T+16,6*T-6);
+    }
+    person(p.px,p.py,true,p.dir,p.moving);
+  }
+
+  if (area > 0) mapLabel("← 前のエリア",65,240);
+  if (area < 3) mapLabel("次のエリア →",565,240);
+  else mapLabel("工事峠・最奥",560,240);
+};
+
+function travel(next) {
+  if (!partner) {
+    say("先に研究所で相棒を選ぼう！");
+    return;
+  }
+  const forward = next > area;
+  area = next;
+  p.x = forward ? 2 : 17;
+  p.y = 7;
+  p.px = p.x*T;
+  p.py = p.y*T;
+  p.moving = false;
+  safe = 5;
+  grassCount = 0;
+  clearInput();
+  canvas.setAttribute("aria-label",areaNames[area] + "のマップ");
+  status();
+  say(areaNames[area] + "に到着！ 左右の看板の近くで「調べる」と移動できます。");
+}
+
+const baseInteract = interact;
+interact = function() {
+  if (mode !== "map" || p.moving) return;
+
+  if (p.y === 7 && p.x >= 17 && area < 3) {
+    travel(area+1); return;
+  }
+  if (p.y === 7 && p.x <= 2 && area > 0) {
+    travel(area-1); return;
+  }
+  if (area === 0) {
+    if (p.x === 4 && p.y === 10) {
+      openShop(); return;
+    }
+    baseInteract(); return;
+  }
+  if (area === 3 && Math.abs(p.x-16)+Math.abs(p.y-6) === 1) {
+    if (bossDefeated) {
+      say("鈴木太間：いい腕だ。穂谷野も、お前のことを認めているぞ！");
+    } else {
+      startBoss();
+    }
+    return;
+  }
+  say(area === 3
+    ? "鈴木太間は右上。草むらには激レアの穂谷野が出現することも！"
+    : "草むらを歩くとモンスターと遭遇します。左右の道から次のエリアへ！");
+};
+$("action").onclick = interact;
+
+function createMonster(name, level) {
+  const s = speciesList.find(m => m.name === name);
+  const growth = Math.max(0,level-5);
+  const maxHp = s.maxHp + level + growth*2;
+  return {
+    ...s, level, maxHp, hp:maxHp, exp:0,
+    atk:s.atk + growth*2,
+    def:s.def + growth
+  };
+}
+
+function startEncounter(mon, isBoss) {
+  enemy = mon;
+  bossBattle = isBoss;
+  rewardGiven = false;
+  guarding = false;
+  movePower = 1;
+  mode = "battle";
+  busy = false;
+  ended = false;
+  grassCount = 0;
+  clearInput();
+  closeMovePanel();
+  $("battleTitle").textContent = isBoss
+    ? "親方・鈴木太間が勝負をしかけてきた！"
+    : "野生の" + enemy.name + "が現れた！";
+  $("enemySprite").textContent = enemy.icon;
+  $("enemySprite").dataset.monster = enemy.name;
+  log(isBoss
+    ? "鈴木太間：頼むぞ、穂谷野！\n穂谷野 Lv.20 が立ちはだかる！"
+    : "いっておいで、" + partner.name + "！");
+  syncBattle();
+  $("battle").hidden = false;
+  $("attack").focus();
+}
+
+encounter = function() {
+  const pools = [
+    ["モコリ","ハネピ","クサモチ"],
+    ["モコリ","クサモチ","ホタルン","ヨルフク","コゲタヌ"],
+    ["ハネピ","ミズマル","アワネコ","ツララビ"],
+    ["イシコロガ","ハガネムシ","コゲタヌ","ヨルフク"]
+  ];
+  const levels = [[2,4],[5,8],[8,12],[12,16]];
+  const pool = pools[area];
+  const name = area === 3 && Math.random() < .015
+    ? "穂谷野"
+    : pool[Math.floor(Math.random()*pool.length)];
+  const [min,max] = levels[area];
+  const level = min + Math.floor(Math.random()*(max-min+1));
+  startEncounter(createMonster(name,level),false);
+};
+
+function startBoss() {
+  if (!partner) return;
+  startEncounter(createMonster("穂谷野",20),true);
+}
+
+const baseSyncBattle = syncBattle;
+syncBattle = function() {
+  baseSyncBattle();
+  battleParty.disabled = busy || ended;
+  $("catch").disabled = busy || ended || bossBattle || balls <= 0 || party.length >= 6;
+  $("run").disabled = busy || ended || bossBattle;
+  if (bossBattle && !ended) {
+    $("battleNote").textContent =
+      "トレーナー戦：捕獲・逃走はできません。仲間の交代や回復薬を活用しよう！";
+  }
+};
+
+const baseFinish = finish;
+finish = function(text) {
+  if (enemy && enemy.hp === 0 && !rewardGiven) {
+    rewardGiven = true;
+    const reward = bossBattle ? 1500 : enemy.level*25;
+    money += reward;
+    text += "\n賞金 " + reward + "円を獲得！";
+    if (bossBattle) {
+      bossDefeated = true;
+      text += "\n鈴木太間：見事だ！ お前たちは一人前だ！";
+    }
+  }
+  baseFinish(text);
+};
+
+const baseCloseBattle = $("closeBattle").onclick;
+$("closeBattle").onclick = function(event) {
+  if (!ended || !caught.overlay.hidden) return;
+  if (partner.hp <= 0) area = 0;
+  baseCloseBattle.call(this,event);
+  bossBattle = false;
+  status();
+  canvas.setAttribute("aria-label",areaNames[area] + "のマップ");
+};
+
+/* 手持ちの閲覧・交代・回復 */
+let rosterInBattle = false;
+
+function closeParty() {
+  roster.overlay.hidden = true;
+  if (!rosterInBattle) mode = "map";
+  clearInput();
+  if (rosterInBattle) battleParty.focus();
+  else canvas.focus({preventScroll:true});
+}
+
+function openParty(inBattle) {
+  if (inBattle) {
+    if (mode !== "battle" || busy || ended) return;
+    closeMovePanel();
+  } else if (mode !== "map" || p.moving) {
+    return;
+  }
+  rosterInBattle = inBattle;
+  clearInput();
+  if (!inBattle) mode = "party";
+  renderParty();
+  roster.overlay.hidden = false;
+  roster.card.querySelector("button").focus();
+}
+
+function renderParty() {
+  roster.card.replaceChildren();
+  const title = document.createElement("h2");
+  title.textContent = "手持ちモンスター " + party.length + "/6";
+  roster.card.appendChild(title);
+
+  if (!party.length) {
+    const p = document.createElement("p");
+    p.textContent = "まだ仲間がいません。研究所で相棒を選ぼう！";
+    roster.card.appendChild(p);
+  }
+
+  party.forEach(mon => {
+    const entry = document.createElement("div");
+    entry.className = "party-entry";
+    entry.innerHTML = `
+      <div class="party-top">
+        ${portrait(mon.name)}
+        <div>
+          <strong>${mon === partner ? "★ " : ""}${mon.name} Lv.${mon.level}</strong>
+          <p>HP ${mon.hp}/${mon.maxHp}</p>
+          <p>攻撃 ${mon.atk} ／ 防御 ${mon.def}</p>
+          <p>EXP ${mon.exp}/${mon.level*8}</p>
+        </div>
+      </div>
+      <p>技：たいあたり ／ ${moveNames[mon.name] || "全力アタック"}
+      ／ ひと休み ／ 身を守る</p>
+    `;
+    const buttons = document.createElement("div");
+    buttons.className = "party-buttons";
+
+    const swap = addButton(buttons,
+      mon === partner ? "現在の先頭" : "先頭にする", () => {
+        if (mon === partner || mon.hp <= 0) return;
+        partner = mon;
+        status();
+        if (rosterInBattle) {
+          closeParty();
+          guarding = false;
+          busy = true;
+          log("いっておいで、" + mon.name + "！");
+          syncBattle();
+          enemyTurn();
+        } else {
+          renderParty();
+        }
+      });
+    swap.disabled = mon === partner || mon.hp <= 0;
+
+    const use = addButton(buttons, "回復薬（残り" + potions + "）", () => {
+      if (potions <= 0 || mon.hp <= 0 || mon.hp >= mon.maxHp) return;
+      potions--;
+      const amount = Math.min(30,mon.maxHp-mon.hp);
+      mon.hp += amount;
+      status();
+      if (rosterInBattle) {
+        closeParty();
+        busy = true;
+        log(mon.name + "に回復薬！ HPが" + amount + "回復した。");
+        syncBattle();
+        enemyTurn();
+      } else {
+        renderParty();
+      }
+    });
+    use.disabled = potions <= 0 || mon.hp <= 0 || mon.hp >= mon.maxHp;
+    entry.appendChild(buttons);
+    roster.card.appendChild(entry);
+  });
+
+  const note = document.createElement("p");
+  note.textContent = rosterInBattle
+    ? "交代・回復薬は1ターン消費します。回復薬はHPを30回復します。"
+    : "★が先頭の仲間です。ひんしの仲間は研究所で回復できます。";
+  roster.card.appendChild(note);
+  addButton(roster.card,"閉じる",closeParty);
+}
+
+/* ショップ */
+function openShop() {
+  clearInput();
+  mode = "shop";
+  renderShop();
+  shop.overlay.hidden = false;
+  shop.card.querySelector("button").focus();
+}
+
+function renderShop() {
+  shop.card.innerHTML = `
+    <h2>コモレビ商店</h2>
+    <p>所持金：${money}円</p>
+    <p>捕獲ボール：${balls}個 ／ 回復薬：${potions}個</p>
+    <p>回復薬はHPを30回復。戦闘中にも使えます。</p>
+  `;
+  const choices = document.createElement("div");
+  choices.className = "choices";
+
+  const ball = addButton(choices,"捕獲ボールを買う · 100円",() => {
+    if (money < 100 || balls >= 999) return;
+    money -= 100; balls++;
+    status(); renderShop();
+  });
+  ball.disabled = money < 100 || balls >= 999;
+
+  const medicine = addButton(choices,"回復薬を買う · 150円",() => {
+    if (money < 150 || potions >= 999) return;
+    money -= 150; potions++;
+    status(); renderShop();
+  });
+  medicine.disabled = money < 150 || potions >= 999;
+
+  addButton(choices,"お店を出る",() => {
+    shop.overlay.hidden = true;
+    mode = "map";
+    clearInput();
+    say("店員：ありがとう！ また来てね！");
+    canvas.focus({preventScroll:true});
+  });
+  shop.card.appendChild(choices);
+}
+
+/* 捕獲：成功が必ずわかる確認画面 */
+$("catch").onclick = function() {
+  if (mode !== "battle" || busy || ended || bossBattle ||
+      balls <= 0 || party.length >= 6) return;
+
+  closeMovePanel();
+  guarding = false;
+  busy = true;
+  balls--;
+  log("ボールを投げた……！");
+  syncBattle();
+
+  setTimeout(() => {
+    if (Math.random() < chance()) {
+      const mon = {...enemy,hp:enemy.maxHp};
+      party.push(mon);
+      finish(enemy.name + "を捕まえた！\n" +
+        "手持ちに加わった！ 仲間 " + party.length + "/6");
+
+      setTimeout(() => {
+        caught.card.innerHTML = `
+          <h2>✨ 捕獲成功！</h2>
+          ${portrait(mon.name)}
+          <p class="capture-success">${mon.name} Lv.${mon.level}</p>
+          <p>新しい仲間が手持ちに加わりました！</p>
+          <p>HP ${mon.maxHp} ／ 攻撃 ${mon.atk} ／ 防御 ${mon.def}</p>
+          <p>手持ち：${party.length}/6匹</p>
+        `;
+        const ok = addButton(caught.card,"確認して冒険を続ける",() => {
+          caught.overlay.hidden = true;
+          $("closeBattle").click();
+        });
+        caught.overlay.hidden = false;
+        ok.focus();
+      },600);
+    } else {
+      append("ボールから出てしまった！");
+      enemyTurn();
+    }
+  },1100);
+};
+
+/* 成功画面を出す前に探索へ戻されないようにする */
+$("closeBattle").addEventListener("click", event => {
+  if ($("log").textContent.includes("を捕まえた") &&
+      caught.overlay.hidden &&
+      !caught.card.dataset.confirmed) {
+    event.stopImmediatePropagation();
+    event.preventDefault();
+  }
+},true);
+
+caught.overlay.addEventListener("click",event => {
+  if (event.target.closest("button")) {
+    caught.card.dataset.confirmed = "yes";
+  }
+},true);
+
+const captureStart = $("catch").onclick;
+$("catch").onclick = function() {
+  delete caught.card.dataset.confirmed;
+  captureStart();
+};
+
+/* ===== 拡張セーブ：旧データも読める ===== */
+const oldValidateSave = validateSave;
+validateSave = function(data) {
+  if (!data || (data.version !== 1 && data.version !== 2)) {
+    throw new Error("保存形式が違います");
+  }
+
+  const isNew = data.version === 2;
+  const nextArea = isNew ? data.area : 0;
+  const nextMoney = isNew ? data.money : 300;
+  const nextPotions = isNew ? data.potions : 3;
+
+  if (!validInteger(nextArea,0,3) ||
+      !validInteger(nextMoney,0,Number.MAX_SAFE_INTEGER) ||
+      !validInteger(nextPotions,0,999) ||
+      !validInteger(data.balls,0,999) ||
+      (isNew && typeof data.bossDefeated !== "boolean")) {
+    throw new Error("追加データが不正です");
+  }
+
+  const point = data.player;
+  if (!point || !validInteger(point.x,1,W-2) ||
+      !validInteger(point.y,1,H-2) ||
+      !Object.prototype.hasOwnProperty.call(directions,point.dir)) {
+    throw new Error("位置が不正です");
+  }
+
+  /* 元の厳密な仲間検証を利用。位置だけ安全な村座標で検証 */
+  const previousArea = area;
+  let restored;
+  try {
+    area = 0;
+    restored = oldValidateSave({
+      ...data,
+      version:1,
+      balls:Math.min(data.balls,5),
+      player:{x:7,y:10,dir:point.dir}
+    });
+    area = nextArea;
+    if (blocked(point.x,point.y)) {
+      throw new Error("移動できない場所です");
+    }
+  } finally {
+    area = previousArea;
+  }
+
+  if (nextArea > 0 && !restored.length) {
+    throw new Error("相棒がいません");
+  }
+
+  /* すべて確認した後で追加項目を反映 */
+  area = nextArea;
+  money = nextMoney;
+  potions = nextPotions;
+  bossDefeated = isNew ? data.bossDefeated : false;
+  return restored;
+};
+
+saveButton.removeEventListener("click",saveAdventure);
+saveButton.addEventListener("click",() => {
+  clearInput();
+  if (mode !== "map" || p.moving) {
+    say("探索中、立ち止まってからセーブしてね。");
+    return;
+  }
+
+  const data = {
+    version:2,
+    savedAt:Date.now(),
+    player:{x:p.x,y:p.y,dir:p.dir},
+    party:party.map(m => ({...m})),
+    partnerIndex:partner ? party.indexOf(partner) : -1,
+    balls, area, money, potions, bossDefeated
+  };
+
+  try {
+    const previous = localStorage.getItem(SAVE_KEY);
+    if (previous) {
+      /* 上書き前に直前データを必ず退避 */
+      localStorage.setItem(SAVE_KEY+"-previous",previous);
+
+      let parsed = null;
+      try { parsed = JSON.parse(previous); } catch (_) {}
+      if (parsed && parsed.version === 1 &&
+          localStorage.getItem(SAVE_KEY+"-v1-backup") === null) {
+        localStorage.setItem(SAVE_KEY+"-v1-backup",previous);
+      }
+    }
+    localStorage.setItem(SAVE_KEY,JSON.stringify(data));
+    saveLabel.textContent = "保存済み：" + saveTimeText(data.savedAt);
+    say("セーブ完了！ 現在地・仲間・所持品・所持金・ボス撃破状況を保存しました。");
+  } catch (_) {
+    saveLabel.textContent = "保存できませんでした";
+    say("保存領域を確認してね。冒険はそのまま続けられます。");
+  }
+  canvas.focus({preventScroll:true});
+});
+/* ===== 拡張ここまで ===== */
+/* ===== 逃がす・全滅ゲームオーバー・研究所の補充廃止 ===== */
+
+/* 研究所はHP回復だけ。ボール・回復薬は増やさない */
+heal = function() {
+  party.forEach(mon => {
+    mon.hp = mon.maxHp;
+  });
+  status();
+};
+
+openLab = function() {
+  clearInput();
+
+  if (partner) {
+    heal();
+    say(
+      "博士：みんなのHPを全回復したよ！" +
+      "ボールと回復薬が必要なら、村のショップで買ってね。"
+    );
+  } else {
+    mode = "lab";
+    $("lab").hidden = false;
+    document.querySelector("[data-starter]").focus();
+  }
+};
+
+/* 戦闘の案内文も、研究所で補充できる表記から変更 */
+const syncBeforeRuleChange = syncBattle;
+
+syncBattle = function() {
+  syncBeforeRuleChange();
+
+  if (!ended && !bossBattle && balls === 0 && party.length < 6) {
+    $("battleNote").textContent =
+      "ボールがありません。村のショップで購入できます。";
+  }
+};
+
+/* 手持ち画面に「逃がす」を追加 */
+const renderPartyBeforeRelease = renderParty;
+
+renderParty = function() {
+  renderPartyBeforeRelease();
+
+  // 元の描画で消える見出しIDも付け直す
+  const heading = roster.card.querySelector("h2");
+  if (heading) heading.id = "partyPanelTitle";
+
+  const entries = roster.card.querySelectorAll(".party-entry");
+
+  entries.forEach((entry, index) => {
+    const mon = party[index];
+    const buttons = entry.querySelector(".party-buttons");
+
+    if (!mon || !buttons) return;
+
+    const release = addButton(buttons, "逃がす", () => {
+      if (rosterInBattle || mode !== "party") return;
+
+      if (party.length <= 1) {
+        window.alert("最後の1匹は逃がせません。");
+        return;
+      }
+
+      // 先頭を逃がす場合、生きている交代先が必要
+      const replacement = party.find(
+        other => other !== mon && other.hp > 0
+      );
+
+      if (mon === partner && !replacement) {
+        window.alert(
+          "交代できる元気な仲間がいません。" +
+          "先に研究所で回復してね。"
+        );
+        return;
+      }
+
+      const confirmed = window.confirm(
+        mon.name + " Lv." + mon.level + "を逃がしますか？\n" +
+        "逃がした仲間は手持ちからいなくなります。"
+      );
+
+      if (!confirmed) return;
+
+      const currentIndex = party.indexOf(mon);
+      if (currentIndex < 0) return;
+
+      party.splice(currentIndex, 1);
+
+      if (partner === mon) {
+        partner = replacement;
+      }
+
+      status();
+      renderParty();
+
+      say(
+        mon.name + "を自然に帰した。またどこかで会えるといいね。" +
+        "変更を残すにはセーブしてね。"
+      );
+
+      const firstButton = roster.card.querySelector(
+        "button:not(:disabled)"
+      );
+      if (firstButton) firstButton.focus();
+    });
+
+    release.style.background = "#87594d";
+    release.disabled =
+      rosterInBattle ||
+      party.length <= 1 ||
+      (mon === partner &&
+        !party.some(other => other !== mon && other.hp > 0));
+
+    release.title = rosterInBattle
+      ? "戦闘中は逃がせません"
+      : party.length <= 1
+        ? "最後の1匹は逃がせません"
+        : "この仲間を手持ちから外します";
+  });
+};
+
+/* ゲームオーバー画面 */
+const gameOverScreen = makeOverlay(
+  "gameOverScreen",
+  "ゲームオーバー"
+);
+gameOverScreen.overlay.style.zIndex = "1200";
+
+const gameOverMessage = document.createElement("p");
+gameOverMessage.textContent =
+  "仲間が全員倒れてしまった……。今回の冒険はここまでです。";
+
+const retryNote = document.createElement("p");
+retryNote.textContent =
+  "再開すると最後にセーブした状態に戻ります。" +
+  "セーブしていない進行状況は失われます。" +
+  "保存データがない場合は最初から始まります。";
+
+gameOverScreen.card.append(gameOverMessage, retryNote);
+
+const retryButton = addButton(
+  gameOverScreen.card,
+  "セーブから再開／未保存なら最初から",
+  () => {
+    window.location.reload();
+  }
+);
+
+function showGameOver() {
+  clearInput();
+  closeMovePanel();
+
+  roster.overlay.hidden = true;
+  caught.overlay.hidden = true;
+  $("battle").hidden = true;
+
+  busy = false;
+  ended = true;
+  mode = "gameover";
+
+  guarding = false;
+  movePower = 1;
+  bossBattle = false;
+
+  status();
+  say("仲間が全員倒れてしまった……。ゲームオーバー。");
+
+  gameOverScreen.overlay.hidden = false;
+  retryButton.focus({ preventScroll: true });
+}
+
+/*
+ * 敵の攻撃：
+ * 先頭が倒れても、生きている仲間がいれば自動交代。
+ * 自動交代そのものでは追加の敵攻撃は発生しない。
+ */
+enemyTurn = function() {
+  setTimeout(() => {
+    if (mode !== "battle" || ended || !enemy || !partner) return;
+
+    const amount = Math.min(
+      partner.hp,
+      damage(enemy, partner)
+    );
+
+    partner.hp -= amount;
+
+    append(
+      enemy.name + "の攻撃！ " + amount + "ダメージ。"
+    );
+
+    if (partner.hp <= 0) {
+      const fallenName = partner.name;
+      const nextPartner = party.find(mon => mon.hp > 0);
+
+      append(fallenName + "は力尽きた……。");
+
+      if (!nextPartner) {
+        finish("仲間が全員倒れてしまった……。");
+        showGameOver();
+        return;
+      }
+
+      partner = nextPartner;
+      guarding = false;
+      movePower = 1;
+
+      append(
+        "まだ仲間がいる！\n" +
+        "いっておいで、" + partner.name + "！"
+      );
+    }
+
+    busy = false;
+    syncBattle();
+    $("attack").focus({ preventScroll: true });
+  }, 550);
+};
+
+/*
+ * 戦闘終了後は通常の探索に戻るだけ。
+ * 全滅時の研究所への帰還・自動回復・道具補充は廃止。
+ */
+$("closeBattle").onclick = function() {
+  if (
+    mode !== "battle" ||
+    !ended ||
+    !caught.overlay.hidden ||
+    !partner ||
+    partner.hp <= 0
+  ) {
+    return;
+  }
+
+  closeMovePanel();
+  guarding = false;
+  movePower = 1;
+
+  $("battle").hidden = true;
+  mode = "map";
+  safe = 5;
+  bossBattle = false;
+
+  clearInput();
+  status();
+
+  canvas.setAttribute(
+    "aria-label",
+    areaNames[area] + "のマップ"
+  );
+
+  say(
+    "冒険を続けよう！ HP回復は研究所へ。" +
+    "ボールと回復薬は村のショップで買えるよ。"
+  );
+
+  canvas.focus({ preventScroll: true });
+};
+
+/* ===== 変更ここまで ===== */
+
+const welcomeMessage = restoreAdventure();
+status();
+say(welcomeMessage);
+requestAnimationFrame(loop);
+})();
+
+</script>
+
+<style>
+#soundToggle{
+  display:block;margin:10px 0;
+  padding:8px 14px;font-size:13px;
+  background:#365958;
+}
+#enemySprite{
+  height:160px;position:relative;
+  display:flex;align-items:center;justify-content:center;
+  overflow:hidden;
+  background:
+    radial-gradient(ellipse at 50% 88%,#87a36b 0 24%,transparent 25%),
+    linear-gradient(#c4e2ca 65%,#aec584 65%);
+}
+.mon-art{width:145px;height:135px;overflow:visible}
+#enemySprite .mon-art{
+  animation:monsterFloat 2.2s ease-in-out infinite;
+}
+#allyArt{
+  display:flex;align-items:center;gap:12px;
+  margin:8px 0;color:#46624f;font-size:12px;
+}
+#allyArt .mon-art{width:76px;height:65px}
+.choices button[data-starter]{
+  display:flex;align-items:center;gap:10px;
+}
+.choices .mon-art{width:66px;height:62px;flex-shrink:0}
+#battle .card{position:relative}
+#battle:not([hidden]) .card{
+  animation:battleEntrance .35s ease-out;
+}
+#enemySprite.hit .mon-art{animation:monsterHit .4s}
+#battle .card.shake{animation:cardShake .3s}
+#enemySprite::after{
+  content:"";position:absolute;inset:0;
+  background:#fff7c8;opacity:0;pointer-events:none;
+}
+#enemySprite.hit::after{animation:hitFlash .3s}
+#enemySprite.captured .mon-art{
+  animation:captureShrink .55s forwards;
+}
+#enemySprite.victory{box-shadow:inset 0 0 35px #ffe58e}
+.battle-number{
+  position:absolute;left:55%;top:35%;
+  font-size:30px;font-weight:900;color:#fff6bb;
+  text-shadow:2px 2px #735037;
+  pointer-events:none;z-index:4;
+  animation:numberRise .8s forwards;
+}
+.capture-ball{
+  position:absolute;left:calc(50% - 15px);top:55%;
+  width:30px;height:30px;border:3px solid #344b49;
+  border-radius:50%;z-index:5;
+  background:linear-gradient(#e89957 45%,#344b49 45% 55%,#fff3ce 55%);
+  box-shadow:0 3px 0 #0002;
+  animation:ballThrow .65s ease-out forwards;
+}
+.capture-ball::after{
+  content:"";position:absolute;left:8px;top:8px;
+  width:8px;height:8px;background:#fff7d3;
+  border:2px solid #344b49;border-radius:50%;
+}
+.spark{
+  position:absolute;left:50%;top:50%;
+  color:#fff3a2;font-size:22px;pointer-events:none;
+  animation:sparkBurst .85s forwards;
+}
+@keyframes monsterFloat{
+  50%{transform:translateY(-7px)}
+}
+@keyframes battleEntrance{
+  from{opacity:0;transform:translateY(25px) scale(.94)}
+  to{opacity:1;transform:none}
+}
+@keyframes monsterHit{
+  20%,60%{transform:translateX(-9px);filter:brightness(2)}
+  40%,80%{transform:translateX(9px)}
+}
+@keyframes cardShake{
+  25%,75%{transform:translateX(-5px)}
+  50%{transform:translateX(5px)}
+}
+@keyframes hitFlash{
+  25%{opacity:.75}100%{opacity:0}
+}
+@keyframes numberRise{
+  to{transform:translateY(-50px);opacity:0}
+}
+@keyframes captureShrink{
+  to{transform:translateY(25px) scale(0);opacity:0}
+}
+@keyframes ballThrow{
+  from{transform:translate(-140px,60px) rotate(-270deg)}
+  60%{transform:translate(0,-35px) rotate(15deg)}
+  80%{transform:translate(0,0) rotate(-20deg)}
+  to{transform:translate(0,0) rotate(0)}
+}
+@keyframes sparkBurst{
+  to{transform:translate(var(--dx),var(--dy)) scale(.3);opacity:0}
+}
+@media(prefers-reduced-motion:reduce){
+  #enemySprite .mon-art{animation:none}
+  #battle .card{animation:none}
+}
+</style>
+
+<script>
+(function(){
+"use strict";
+const $=id=>document.getElementById(id);
+if(!$("game")||$("soundToggle"))return;
+
+/* オリジナルのモンスターイラスト */
+function art(name){
+  const extra = window.komorebiExtraArt
+    ? window.komorebiExtraArt(name)
+    : "";
+  if (extra) return extra;
+
+  const outlines=
+'stroke="#354d43" stroke-width="3.5" stroke-linejoin="round"';
+  const faces=`
+    <ellipse cx="48" cy="72" rx="4" ry="6" fill="#30443b"/>
+    <ellipse cx="80" cy="72" rx="4" ry="6" fill="#30443b"/>
+    <circle cx="49" cy="70" r="1.3" fill="white"/>
+    <circle cx="81" cy="70" r="1.3" fill="white"/>
+    <path d="M59 83 Q64 89 69 83" fill="none"
+      stroke="#354d43" stroke-width="3" stroke-linecap="round"/>
+    <ellipse cx="39" cy="83" rx="7" ry="4" fill="#edaa8d" opacity=".7"/>
+    <ellipse cx="89" cy="83" rx="7" ry="4" fill="#edaa8d" opacity=".7"/>`;
+  let shape="";
+  if(name==="コノハル"){
+    shape=`
+      <path d="M42 104L29 117Q49 124 56 108
+        M76 105L86 119Q104 118 94 104" fill="#639d65" ${outlines}/>
+      <path d="M62 48Q22 42 29 18Q57 17 64 41
+        Q69 7 98 15Q103 39 66 48" fill="#75b965" ${outlines}/>
+      <path d="M40 26L61 44M86 23L66 44"
+        fill="none" stroke="#c5e494" stroke-width="3"/>
+      <ellipse cx="64" cy="78" rx="39" ry="35" fill="#a7d584" ${outlines}/>
+      <ellipse cx="64" cy="94" rx="20" ry="13" fill="#e0eab1"/>
+      ${faces}`;
+  }else if(name==="ヒノポン"){
+    shape=`
+      <path d="M93 96Q128 94 114 57L103 69L100 48Q83 70 98 85"
+        fill="#ed9252" ${outlines}/>
+      <path d="M46 48Q35 24 48 20L61 42
+        Q63 15 79 18L82 48" fill="#e9a35e" ${outlines}/>
+      <path d="M44 103L35 117L55 116M77 105L78 117L96 115"
+        fill="#cb7850" ${outlines}/>
+      <ellipse cx="63" cy="77" rx="36" ry="36" fill="#efad69" ${outlines}/>
+      <path d="M50 106Q43 88 58 80L63 89L70 77Q89 97 76 108"
+        fill="#ffe3a0"/>
+      ${faces}`;
+  }else if(name==="ミズマル"){
+    shape=`
+      <path d="M96 82Q125 64 116 99L96 105"
+        fill="#77bfc8" ${outlines}/>
+      <ellipse cx="43" cy="111" rx="15" ry="7" fill="#669fb5" ${outlines}/>
+      <ellipse cx="83" cy="111" rx="15" ry="7" fill="#669fb5" ${outlines}/>
+      <path d="M53 48Q40 32 52 21L65 39L79 22Q92 41 76 49"
+        fill="#83cbd0" ${outlines}/>
+      <ellipse cx="64" cy="79" rx="39" ry="35" fill="#98d6db" ${outlines}/>
+      <ellipse cx="64" cy="96" rx="24" ry="15" fill="#ddede0"/>
+      ${faces}`;
+  }else if(name==="モコリ"){
+    shape=`
+      <path d="M36 53Q15 16 38 20L51 46
+        M77 47Q91 14 105 29L94 58" fill="#c5a984" ${outlines}/>
+      <ellipse cx="43" cy="111" rx="13" ry="7" fill="#aa8d71" ${outlines}/>
+      <ellipse cx="85" cy="111" rx="13" ry="7" fill="#aa8d71" ${outlines}/>
+      <path d="M30 51Q34 35 49 43Q65 29 78 43
+        Q100 38 101 59Q117 72 103 86
+        Q106 107 86 110Q64 123 45 109
+        Q22 111 25 90Q10 70 30 51"
+        fill="#e4d4b3" ${outlines}/>
+      <ellipse cx="64" cy="88" rx="18" ry="13" fill="#f7eacb"/>
+      ${faces}`;
+  }else if(name==="ハネピ"){
+    shape=`
+      <path d="M49 49Q35 26 50 23L63 42L71 21Q87 31 76 49"
+        fill="#e7b960" ${outlines}/>
+      <path d="M49 104L44 118L59 115M77 104L84 118L69 115"
+        fill="#d99554" ${outlines}/>
+      <ellipse cx="64" cy="77" rx="34" ry="35" fill="#f0cf7c" ${outlines}/>
+      <path d="M36 66Q10 66 19 95Q35 95 42 83
+        M92 66Q118 66 109 95Q93 95 86 83"
+        fill="#e6b665" ${outlines}/>
+      ${faces}
+      <path d="M56 81L64 91L72 81Z" fill="#db9250"
+        stroke="#354d43" stroke-width="2"/>`;
+  }else{
+    shape=`
+      <path d="M58 47Q25 36 36 16Q60 16 65 38
+        Q76 9 99 24Q91 47 67 49"
+        fill="#679e61" ${outlines}/>
+      <path d="M24 88Q22 48 64 46Q106 48 105 89
+        Q109 112 90 115L78 109L64 118L49 110
+        Q19 121 24 88" fill="#b2ce85" ${outlines}/>
+      <ellipse cx="64" cy="98" rx="24" ry="12" fill="#dce7ac"/>
+      ${faces}`;
+  }
+  return `<svg class="mon-art" viewBox="0 0 128 128"
+    role="img" aria-label="${name}">
+    <ellipse cx="64" cy="119" rx="37" ry="6" fill="#304b3922"/>
+    ${shape}
+  </svg>`;
+}
+window.komorebiArt = art;
+
+const starterNames = ["コノハル","ヒノポン","ミズマル"];
+const allNames = [
+  ...starterNames,
+  "モコリ","ハネピ","クサモチ",
+  "イシコロガ","ホタルン","アワネコ","ヨルフク",
+  "コゲタヌ","ツララビ","ハガネムシ","穂谷野"
+];
+
+document.querySelectorAll("[data-starter]").forEach(b=>{
+  b.insertAdjacentHTML("afterbegin",art(starterNames[Number(b.dataset.starter)]));
+});
+const ally=document.createElement("div");
+ally.id="allyArt";
+$("allyInfo").before(ally);
+function updateAlly(){
+  const name=allNames.find(n=>$("allyInfo").textContent.includes(n));
+
+  if(name&&ally.dataset.name!==name){
+    ally.dataset.name=name;
+    ally.innerHTML=art(name)+"<span>いっしょにがんばろう！</span>";
+  }
+}
+new MutationObserver(updateAlly).observe($("allyInfo"),{
+  childList:true,characterData:true,subtree:true
+});
+
+/* Web Audio：外部ファイル不要のオリジナルBGM */
+const sound=document.createElement("button");
+sound.id="soundToggle";
+sound.textContent="♪ 音楽：OFF";
+sound.setAttribute("aria-pressed","false");
+$("status").before(sound);
+let audio=null,enabled=false,timer=null,beat=0,nextTime=0;
+const village=[72,76,79,76,74,77,81,77,76,79,84,79,74,77,79,71];
+const combat=[69,76,81,76,72,79,84,79,71,78,83,78,68,75,80,75];
+function tone(note,time,length,volume=.035,type="triangle"){
+  if(!audio||!enabled)return;
+  const osc=audio.createOscillator(),gain=audio.createGain();
+  osc.type=type;
+  osc.frequency.value=440*Math.pow(2,(note-69)/12);
+  gain.gain.setValueAtTime(0,time);
+  gain.gain.linearRampToValueAtTime(volume,time+.012);
+  gain.gain.exponentialRampToValueAtTime(.0001,time+length);
+  osc.connect(gain);gain.connect(audio.destination);
+  osc.start(time);osc.stop(time+length+.03);
+  osc.onended=()=>{osc.disconnect();gain.disconnect()};
+}
+function schedule(){
+  if(!enabled||audio.state!=="running")return;
+  if(nextTime<audio.currentTime)nextTime=audio.currentTime+.04;
+  while(nextTime<audio.currentTime+.15){
+    const fighting=!$("battle").hidden;
+    const notes=fighting?combat:village;
+    const interval=fighting?.19:.3;
+    tone(notes[beat%16],nextTime,interval*.85,.025);
+    if(beat%2===0){
+      const bass=(fighting?[45,48,47,44]:[48,53,52,55])[Math.floor(beat/4)%4];
+      tone(bass,nextTime,interval*1.7,.033);
+    }
+    if(beat%4===0)tone(notes[beat%16]-12,nextTime,interval*2,.013,"sine");
+    beat++;nextTime+=interval;
+  }
+}
+sound.onclick=async()=>{
+  try{
+    if(!audio){
+      const AudioClass=window.AudioContext||window.webkitAudioContext;
+      if(!AudioClass)throw new Error("unsupported");
+      audio=new AudioClass();
+    }
+    if(enabled){
+      enabled=false;clearInterval(timer);
+      await audio.suspend();
+    }else{
+      await audio.resume();enabled=true;
+      nextTime=audio.currentTime+.05;
+      schedule();timer=setInterval(schedule,50);
+    }
+    sound.textContent=enabled?"♪ 音楽：ON":"♪ 音楽：OFF";
+    sound.setAttribute("aria-pressed",String(enabled));
+  }catch(e){
+    enabled=false;clearInterval(timer);
+    sound.textContent="音を再生できませんでした";
+  }
+};
+document.addEventListener("visibilitychange",()=>{
+  if(!audio||!enabled)return;
+  if(document.hidden)audio.suspend();
+  else audio.resume().catch(()=>{});
+});
+function effect(notes){
+  if(!enabled||!audio||audio.state!=="running")return;
+  notes.forEach((n,i)=>tone(n,audio.currentTime+i*.085,.15,.045,"sine"));
+}
+
+/* 戦闘の演出 */
+const sprite=$("enemySprite"),card=$("battle").querySelector(".card");
+function animate(el,name){
+  el.classList.remove(name);
+  void el.offsetWidth;
+  el.classList.add(name);
+}
+function number(amount){
+  const el=document.createElement("span");
+  el.className="battle-number";el.textContent="−"+amount;
+  sprite.appendChild(el);setTimeout(()=>el.remove(),850);
+}
+function sparks(){
+  for(let i=0;i<12;i++){
+    const el=document.createElement("span");
+    el.className="spark";el.textContent=i%2?"✦":"✧";
+    const angle=i*Math.PI/6;
+    el.style.setProperty("--dx",Math.cos(angle)*105+"px");
+    el.style.setProperty("--dy",Math.sin(angle)*65+"px");
+    sprite.appendChild(el);setTimeout(()=>el.remove(),900);
+  }
+}
+function hp(id){
+  const m=$(id).textContent.match(/HP\s+(\d+)\s*\/\s*(\d+)/);
+  return m?Number(m[1]):null;
+}
+let oldEnemy=null,oldAlly=null,lastLog="";
+function startBattle(){
+  if($("battle").hidden)return;
+
+  const name =
+    sprite.dataset.monster ||
+    allNames.find(n=>$("battleTitle").textContent.includes(n));
+
+  sprite.classList.remove("hit","captured","victory");
+  if(name)sprite.innerHTML=art(name);
+
+  oldEnemy=hp("enemyInfo");
+  oldAlly=hp("allyInfo");
+  lastLog=$("log").textContent;
+
+  updateAlly();
+  beat=0;
+  effect([60,67,72,79]);
+
+  let trainer=$("trainerPortrait");
+  if(!trainer){
+    trainer=document.createElement("div");
+    trainer.id="trainerPortrait";
+    $("battleTitle").after(trainer);
+  }
+
+  const isBoss=$("battleTitle").textContent.includes("鈴木太間");
+  trainer.hidden=!isBoss;
+    trainer.innerHTML=isBoss
+    ? art("鈴木太間") +
+      "<div><strong>親方・鈴木太間</strong> ／ 手持ち：穂谷野 Lv.20</div>"
+    : "";
+}
+
+new MutationObserver(startBattle).observe($("battle"),{
+  attributes:true,attributeFilter:["hidden"]
+});
+
+new MutationObserver(()=>{
+  if($("battle").hidden)return;
+  const current=hp("enemyInfo");
+  if(oldEnemy!==null&&current!==null&&current<oldEnemy){
+    animate(sprite,"hit");number(oldEnemy-current);
+    effect([55,43]);
+  }
+  oldEnemy=current;
+}).observe($("enemyInfo"),{childList:true,subtree:true,characterData:true});
+new MutationObserver(()=>{
+  if($("battle").hidden)return;
+  const current=hp("allyInfo");
+  if(oldAlly!==null&&current!==null&&current<oldAlly){
+    animate(card,"shake");effect([48,40]);
+  }
+  oldAlly=current;
+}).observe($("allyInfo"),{childList:true,subtree:true,characterData:true});
+new MutationObserver(()=>{
+  if($("battle").hidden)return;
+  const text=$("log").textContent;
+  if(text===lastLog)return;
+  const before=lastLog;lastLog=text;
+  if(text.includes("ボールを投げた")&&!before.includes("ボールを投げた")){
+    sprite.querySelectorAll(".capture-ball").forEach(e=>e.remove());
+    const ball=document.createElement("div");
+    ball.className="capture-ball";sprite.appendChild(ball);
+    effect([67,74,81]);
+  }
+  if(text.includes("ボールから出て")&&!before.includes("ボールから出て")){
+    sprite.querySelectorAll(".capture-ball").forEach(e=>e.remove());
+    animate(sprite,"hit");effect([65,60]);
+  }
+  if(text.includes("を捕まえた")&&!before.includes("を捕まえた")){
+    sprite.classList.add("captured","victory");
+    sparks();effect([72,76,79,84]);
+  }
+  if(text.includes("を倒した")&&!before.includes("を倒した")){
+    sprite.classList.add("victory");sparks();effect([67,72,76,79]);
+  }
+  if(text.includes("レベルアップ")&&!before.includes("レベルアップ")){
+    setTimeout(()=>effect([72,74,76,79,84]),420);
+  }
+}).observe($("log"),{childList:true,subtree:true,characterData:true});
 })();
 </script>
+<style>
+/* 戦闘画面の配置を拡張。既存のイラスト・演出を利用 */
+#battle .card.battle-expanded {
+  width: min(100%, 620px);
+  padding: 16px;
+}
+
+#battleField {
+  position: relative;
+  isolation: isolate;
+  height: 330px;
+  overflow: hidden;
+  margin: 12px 0;
+  border: 3px solid #758e68;
+  border-radius: 13px;
+  background:
+    radial-gradient(
+      ellipse at 76% 49%,
+      #c8d49a 0 15%,
+      #8daa72 15.5% 20%,
+      transparent 20.5%
+    ),
+    radial-gradient(
+      ellipse at 24% 95%,
+      #c8d49a 0 19%,
+      #8daa72 19.5% 24%,
+      transparent 24.5%
+    ),
+    linear-gradient(
+      #bdded5 0%,
+      #e2edc6 47%,
+      #a9c17e 48%,
+      #91ad6d 100%
+    );
+}
+
+#battleField .battle-hud {
+  position: absolute;
+  z-index: 3;
+  width: 49%;
+  padding: 10px 12px 6px;
+  border: 2px solid #657958;
+  border-radius: 9px 3px 9px 3px;
+  background: #fff6dcf2;
+  box-shadow: 3px 4px 0 #38543e30;
+  color: #30423b;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+#battleField .enemy-hud {
+  top: 13px;
+  left: 10px;
+}
+
+#battleField .ally-hud {
+  right: 10px;
+  bottom: 20px;
+}
+
+#battleField .hp {
+  margin: 6px 0 3px;
+  height: 10px;
+}
+
+#battleField #enemySprite {
+  position: absolute;
+  z-index: 2;
+  top: 38px;
+  right: 0;
+  width: 48%;
+  height: 165px;
+  margin: 0;
+  padding: 0;
+  overflow: visible;
+  border-radius: 0;
+  background: none;
+}
+
+#battleField #enemySprite .mon-art {
+  width: 150px;
+  height: 145px;
+}
+
+#battleField #allyArt {
+  position: absolute;
+  z-index: 2;
+  bottom: 3px;
+  left: 0;
+  display: flex;
+  justify-content: center;
+  width: 48%;
+  height: 170px;
+  margin: 0;
+  gap: 0;
+}
+
+#battleField #allyArt .mon-art {
+  width: 170px;
+  height: 160px;
+  filter: drop-shadow(0 5px 2px #284a3d30);
+}
+
+/* 絵は既存のものを維持し、応援文だけ非表示にする */
+#battleField #allyArt > span {
+  display: none;
+}
+
+#battle.battle-revealing .card {
+  animation: battleRevealAdded .42s ease-out;
+}
+
+@keyframes battleRevealAdded {
+  from { opacity: 0; transform: translateY(14px) scale(.97); }
+  to { opacity: 1; transform: none; }
+}
+
+/* 戦闘に入る瞬間だけ画面を覆う */
+#encounterCurtain {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  pointer-events: auto;
+  background: #fff6d7;
+  animation: encounterCurtainAdded .85s linear forwards;
+}
+
+#encounterCurtain::before,
+#encounterCurtain::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  width: 100%;
+  height: 51%;
+  background: #142b2b;
+}
+
+#encounterCurtain::before {
+  top: 0;
+  animation: encounterTopAdded .85s ease-in-out forwards;
+}
+
+#encounterCurtain::after {
+  bottom: 0;
+  animation: encounterBottomAdded .85s ease-in-out forwards;
+}
+
+@keyframes encounterCurtainAdded {
+  0% { background: #fff6d7; }
+  15% { background: #fff6d740; }
+  27% { background: #fff6d7; }
+  42%, 100% { background: transparent; }
+}
+
+@keyframes encounterTopAdded {
+  0%, 27% { transform: translateY(-100%); }
+  48%, 65% { transform: translateY(0); }
+  100% { transform: translateY(-100%); }
+}
+
+@keyframes encounterBottomAdded {
+  0%, 27% { transform: translateY(100%); }
+  48%, 65% { transform: translateY(0); }
+  100% { transform: translateY(100%); }
+}
+
+@media (max-width: 440px) {
+  #battle .card.battle-expanded { padding: 10px; }
+  #battleField { height: 295px; }
+
+  #battleField .battle-hud {
+    width: 54%;
+    padding: 7px;
+    font-size: 11px;
+  }
+
+  #battleField #enemySprite {
+    top: 55px;
+    height: 140px;
+  }
+
+  #battleField #enemySprite .mon-art {
+    width: 125px;
+    height: 125px;
+  }
+
+  #battleField #allyArt {
+    height: 145px;
+  }
+
+  #battleField #allyArt .mon-art {
+    width: 140px;
+    height: 140px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #battle.battle-revealing .card {
+    animation: none;
+  }
+
+  #encounterCurtain,
+  #encounterCurtain::before,
+  #encounterCurtain::after {
+    animation: none;
+  }
+}
+</style>
+
+<script>
+(function () {
+  "use strict";
+
+  const get = id => document.getElementById(id);
+  const battle = get("battle");
+
+  if (!battle || get("battleField")) return;
+
+  const card = battle.querySelector(".card");
+  const title = get("battleTitle");
+  const enemyInfo = get("enemyInfo");
+  const allyInfo = get("allyInfo");
+  const enemyBar = get("enemyBar");
+  const allyBar = get("allyBar");
+  const enemySprite = get("enemySprite");
+  const allyArt = get("allyArt");
+
+  if (
+    !card || !title || !enemyInfo || !allyInfo ||
+    !enemyBar || !allyBar || !enemySprite || !allyArt
+  ) return;
+
+  /*
+   * 要素を作り直さず移動するので、
+   * 既存のHP更新・イラスト更新・演出監視を維持できます。
+   */
+  const field = document.createElement("div");
+  field.id = "battleField";
+
+  const enemyHud = document.createElement("div");
+  enemyHud.className = "battle-hud enemy-hud";
+
+  const allyHud = document.createElement("div");
+  allyHud.className = "battle-hud ally-hud";
+
+  const enemyHp = enemyBar.parentElement;
+  const allyHp = allyBar.parentElement;
+
+  title.after(field);
+  enemyHud.append(enemyInfo, enemyHp);
+  allyHud.append(allyInfo, allyHp);
+  field.append(enemyHud, enemySprite, allyArt, allyHud);
+  card.classList.add("battle-expanded");
+
+  let curtain = null;
+  let cleanupTimer = null;
+  let transitioning = false;
+  let wasHidden = battle.hidden;
+
+  const reduceMotion = window.matchMedia(
+    "(prefers-reduced-motion: reduce)"
+  );
+
+  function finishTransition() {
+    clearTimeout(cleanupTimer);
+
+    if (curtain) {
+      curtain.remove();
+      curtain = null;
+    }
+
+    transitioning = false;
+    battle.removeAttribute("inert");
+    battle.classList.remove("battle-revealing");
+
+    if (!battle.hidden && !get("attack").disabled) {
+      get("attack").focus({ preventScroll: true });
+    }
+  }
+
+  function beginTransition() {
+    finishTransition();
+
+    if (reduceMotion.matches) return;
+
+    transitioning = true;
+    battle.setAttribute("inert", "");
+    battle.classList.add("battle-revealing");
+
+    curtain = document.createElement("div");
+    curtain.id = "encounterCurtain";
+    curtain.setAttribute("aria-hidden", "true");
+    document.body.appendChild(curtain);
+
+    curtain.addEventListener("animationend", event => {
+      if (event.animationName === "encounterCurtainAdded") {
+        finishTransition();
+      }
+    });
+
+    // アニメーションが完了しない場合も操作不能にしない
+    cleanupTimer = setTimeout(finishTransition, 1100);
+  }
+
+  new MutationObserver(() => {
+    const hidden = battle.hidden;
+
+    if (wasHidden && !hidden) beginTransition();
+    if (hidden) finishTransition();
+
+    wasHidden = hidden;
+  }).observe(battle, {
+    attributes: true,
+    attributeFilter: ["hidden"]
+  });
+
+  // 演出中の先行入力を防ぐ。戦闘ロジック自体は変更しない
+  battle.addEventListener("click", event => {
+    if (!transitioning) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+  }, true);
+
+  battle.addEventListener("keydown", event => {
+    if (!transitioning) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+  }, true);
+})();
+</script>
+<style>
+/* 日本語を読みやすく。外部フォントの読み込みは不要 */
+body,
+button,
+input,
+select,
+textarea {
+  font-family:
+    "BIZ UDPGothic",
+    "Meiryo",
+    "Hiragino Kaku Gothic ProN",
+    "Yu Gothic",
+    sans-serif;
+}
+
+body {
+  font-size: 16px;
+  line-height: 1.7;
+}
+
+button {
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.5;
+}
+
+.subtitle,
+footer {
+  font-size: 13px;
+  color: #d0dfd0;
+}
+
+#status {
+  font-size: 14px;
+  line-height: 1.9;
+}
+
+#message,
+#log {
+  font-size: 16px;
+  line-height: 1.8;
+}
+
+#battleNote {
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+.card h2 {
+  line-height: 1.5;
+}
+
+/* 戦闘画面：既存の配置とイラストを維持 */
+#battle .card.battle-expanded {
+  width: min(100%, 680px);
+  max-height: 94vh;
+  max-height: 94dvh;
+  padding: 16px;
+}
+
+#battleTitle {
+  font-size: 19px;
+  margin-bottom: 10px;
+}
+
+#battleField {
+  height: 350px;
+  border-color: #526d51;
+}
+
+#battleField .battle-hud {
+  width: 48%;
+  padding: 10px 12px 8px;
+  background: #fff9e8;
+  border-color: #52674d;
+  color: #243d32;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.7;
+}
+
+#battleField .enemy-hud {
+  top: 14px;
+  left: 10px;
+}
+
+#battleField .ally-hud {
+  bottom: 16px;
+  right: 10px;
+}
+
+#battleField .hp {
+  height: 12px;
+  background: #d4d6c4;
+  border: 1px solid #89947a;
+}
+
+#battleField .hp i {
+  background: linear-gradient(#88c877, #4a975b);
+}
+
+#battleField #enemySprite {
+  top: 48px;
+  right: 0;
+  width: 48%;
+  height: 170px;
+}
+
+#battleField #enemySprite .mon-art {
+  width: 164px;
+  height: 160px;
+}
+
+#battleField #allyArt {
+  left: 0;
+  bottom: 5px;
+  width: 48%;
+  height: 175px;
+}
+
+#battleField #allyArt .mon-art {
+  width: 180px;
+  height: 170px;
+}
+
+/* SVGは滑らかに、マップのドット絵は従来どおり */
+.mon-art {
+  image-rendering: auto;
+}
+
+#battle #log {
+  min-height: 88px;
+  margin: 10px 0;
+  padding: 12px 14px;
+  background: #fffaf0;
+  border: 2px solid #b8aa83;
+  border-radius: 10px;
+  color: #263d32;
+}
+
+#battle .actions {
+  gap: 9px;
+}
+
+#battle .actions button {
+  min-height: 50px;
+}
+
+.party-entry p {
+  font-size: 14px;
+}
+
+/* キーボード操作時も選択位置を明確にする */
+button:focus-visible {
+  outline: 3px solid #e4b845;
+  outline-offset: 3px;
+}
+
+/* 小さい画面でもHP表示を極端に小さくしない */
+@media (max-width: 440px) {
+  main {
+    padding: 10px;
+  }
+
+  #battle.overlay {
+    padding: 8px;
+  }
+
+  #battle .card.battle-expanded {
+    padding: 10px;
+  }
+
+  #battleTitle {
+    font-size: 17px;
+  }
+
+  #battleField {
+    height: 320px;
+  }
+
+  #battleField .battle-hud {
+    width: 56%;
+    padding: 7px 8px;
+    font-size: 13px;
+    line-height: 1.6;
+  }
+
+  #battleField .enemy-hud {
+    top: 9px;
+    left: 6px;
+  }
+
+  #battleField .ally-hud {
+    right: 6px;
+    bottom: 12px;
+  }
+
+  #battleField #enemySprite {
+    top: 83px;
+    width: 44%;
+    height: 130px;
+  }
+
+  #battleField #enemySprite .mon-art {
+    width: 122px;
+    height: 122px;
+  }
+
+  #battleField #allyArt {
+    width: 44%;
+    height: 145px;
+    bottom: 4px;
+  }
+
+  #battleField #allyArt .mon-art {
+    width: 140px;
+    height: 140px;
+  }
+
+  #log,
+  #message {
+    font-size: 15px;
+  }
+
+  #battle .actions button {
+    padding: 10px 6px;
+    font-size: 14px;
+  }
+}
+</style>
+<style>
+/* 操作エリアで文字選択・長押しメニューを防ぐ */
+.controls,
+.controls *,
+button,
+button *,
+#game {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+/* 移動・調べる操作をスクロールやズームにしない */
+.controls,
+.controls *,
+#game {
+  touch-action: none;
+}
+</style>
+
+<script>
+(function () {
+  "use strict";
+
+  function isGameControl(target) {
+    return target instanceof Element &&
+      target.closest(".controls, button, #game") !== null;
+  }
+
+  /* 長押しメニューを操作部分だけで抑える */
+  document.addEventListener("contextmenu", function (event) {
+    if (isGameControl(event.target)) {
+      event.preventDefault();
+    }
+  }, true);
+
+  /* 文字選択が始まるのを防ぐ */
+  document.addEventListener("selectstart", function (event) {
+    if (isGameControl(event.target)) {
+      event.preventDefault();
+    }
+  }, true);
+
+  /* ボタン内の画像などをドラッグさせない */
+  document.addEventListener("dragstart", function (event) {
+    if (isGameControl(event.target)) {
+      event.preventDefault();
+    }
+  }, true);
+})();
+</script>
+  
 </body>
 </html>
