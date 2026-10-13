@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -2017,6 +2016,751 @@ $("closeBattle").onclick = function() {
 };
 
 /* ===== 変更ここまで ===== */
+/* ===== 第2章の準備：イベント保存・ボルトカッター ===== */
+
+let chapter2State = {
+  metSuzuki: false,
+  boughtCutter: false,
+  cableCut: false,
+  defeatedByWorker: false,
+  fishingRod: false
+};
+
+/* 旧セーブに項目がなくても読み込めるようにする */
+const validateBeforeChapter2 = validateSave;
+
+validateSave = function(data) {
+  const restoredEvents = {
+    metSuzuki: false,
+    boughtCutter: false,
+    cableCut: false,
+    defeatedByWorker: false,
+    fishingRod: false
+  };
+
+  if (data && data.chapter2 !== undefined) {
+    if (
+      !data.chapter2 ||
+      typeof data.chapter2 !== "object" ||
+      Array.isArray(data.chapter2)
+    ) {
+      throw new Error("第2章の保存内容が不正です");
+    }
+
+    for (const key of Object.keys(restoredEvents)) {
+      const value = data.chapter2[key];
+
+      if (value !== undefined && typeof value !== "boolean") {
+        throw new Error("イベントの進行状態が不正です");
+      }
+
+      restoredEvents[key] = value === true;
+    }
+  }
+
+  // 既存の仲間・所持金・マップの検証を先に行う
+  const restoredParty = validateBeforeChapter2(data);
+
+  chapter2State = restoredEvents;
+  return restoredParty;
+};
+
+/* 鈴木太間を倒した後、話しかけると依頼を受ける */
+const interactBeforeChapter2 = interact;
+
+interact = function() {
+  if (mode !== "map" || p.moving) return;
+
+  const talkingToSuzuki =
+    area === 3 &&
+    Math.abs(p.x - 16) + Math.abs(p.y - 6) === 1;
+
+  if (talkingToSuzuki && bossDefeated) {
+    if (!chapter2State.metSuzuki) {
+      chapter2State.metSuzuki = true;
+
+      say(
+        "鈴木太間：この先に、電気錠の扉がある資材保管区画がある。" +
+        "調べるために丈夫なボルトカッターが必要なんだ。" +
+        "村の商店で2,000円で買えるから、用意してくれ。" +
+        "【依頼を受けた！ セーブして進行を保存しよう】"
+      );
+    } else if (!chapter2State.boughtCutter) {
+      say(
+        "鈴木太間：丈夫なボルトカッターは村の商店で2,000円だ。" +
+        "用意できたら、また来てくれ。"
+      );
+    } else {
+      say(
+        "鈴木太間：ボルトカッターを用意してくれたか！" +
+        "【準備完了：資材保管区画は次の追加コードで実装されます】"
+      );
+    }
+
+    return;
+  }
+
+  interactBeforeChapter2();
+};
+
+$("action").onclick = interact;
+
+/* 既存の商品を残したまま、依頼後にカッターを販売 */
+const renderShopBeforeChapter2 = renderShop;
+
+renderShop = function() {
+  renderShopBeforeChapter2();
+
+  if (!chapter2State.metSuzuki) return;
+
+  const choices = shop.card.querySelector(".choices");
+  if (!choices) return;
+
+  const cutterButton = document.createElement("button");
+  cutterButton.type = "button";
+
+  cutterButton.textContent = chapter2State.boughtCutter
+    ? "✓ 丈夫なボルトカッター · 購入済み"
+    : "丈夫なボルトカッターを買う · 2,000円";
+
+  cutterButton.disabled =
+    chapter2State.boughtCutter || money < 2000;
+
+  cutterButton.onclick = function() {
+    if (
+      mode !== "shop" ||
+      !chapter2State.metSuzuki ||
+      chapter2State.boughtCutter ||
+      money < 2000
+    ) {
+      return;
+    }
+
+    money -= 2000;
+    chapter2State.boughtCutter = true;
+
+    status();
+    renderShop();
+
+    say(
+      "丈夫なボルトカッターを手に入れた！" +
+      "「大事な道具」に追加したよ。" +
+      "お店を出たらセーブを忘れずに！"
+    );
+
+    const nextButton = shop.card.querySelector(
+      "button:not(:disabled)"
+    );
+    if (nextButton) nextButton.focus({ preventScroll: true });
+  };
+
+  // 「お店を出る」の直前へ追加
+  choices.insertBefore(cutterButton, choices.lastElementChild);
+};
+
+/* 大事な道具の確認 */
+addButton(toolbar, "🎒 大事な道具", function() {
+  if (mode !== "map" || p.moving) return;
+
+  const items = [];
+
+  if (chapter2State.boughtCutter) {
+    items.push("丈夫なボルトカッター");
+  }
+
+  if (chapter2State.fishingRod) {
+    items.push("釣り竿");
+  }
+
+  say(
+    items.length
+      ? "大事な道具：" + items.join(" ／ ")
+      : "大事な道具：まだ持っていません。"
+  );
+});
+
+/*
+ * 既存のセーブボタンを置き換える。
+ * 古い匿名の保存処理と二重に実行されるのを防ぐ。
+ */
+const chapter2SaveButton = saveButton.cloneNode(true);
+saveButton.replaceWith(chapter2SaveButton);
+
+chapter2SaveButton.addEventListener("click", function() {
+  clearInput();
+
+  if (mode !== "map" || p.moving) {
+    say("探索中、立ち止まってからセーブしてね。");
+    return;
+  }
+
+  const data = {
+    version: 2,
+    savedAt: Date.now(),
+    player: {
+      x: p.x,
+      y: p.y,
+      dir: p.dir
+    },
+    party: party.map(mon => ({ ...mon })),
+    partnerIndex: partner ? party.indexOf(partner) : -1,
+    balls,
+    area,
+    money,
+    potions,
+    bossDefeated,
+    chapter2: { ...chapter2State }
+  };
+
+  try {
+    const previous = localStorage.getItem(SAVE_KEY);
+
+    if (previous !== null) {
+      // 上書きする前のデータを退避
+      localStorage.setItem(SAVE_KEY + "-previous", previous);
+
+      // 第2章対応前のデータも一度だけ残す
+      if (
+        localStorage.getItem(SAVE_KEY + "-before-chapter2") === null
+      ) {
+        localStorage.setItem(
+          SAVE_KEY + "-before-chapter2",
+          previous
+        );
+      }
+
+      let parsed = null;
+      try {
+        parsed = JSON.parse(previous);
+      } catch (_) {}
+
+      if (
+        parsed &&
+        parsed.version === 1 &&
+        localStorage.getItem(SAVE_KEY + "-v1-backup") === null
+      ) {
+        localStorage.setItem(SAVE_KEY + "-v1-backup", previous);
+      }
+    }
+
+    localStorage.setItem(SAVE_KEY, JSON.stringify(data));
+
+    saveLabel.textContent =
+      "保存済み：" + saveTimeText(data.savedAt);
+
+    say(
+      "セーブ完了！ 現在地・仲間・所持品・所持金・" +
+      "ボス撃破状況と、第2章の準備状況を保存したよ。"
+    );
+  } catch (_) {
+    saveLabel.textContent = "保存できませんでした";
+    say(
+      "セーブできませんでした。" +
+      "ブラウザの保存設定や空き容量を確認してね。" +
+      "今の冒険はそのまま続けられます。"
+    );
+  }
+
+  canvas.focus({ preventScroll: true });
+});
+
+/* ===== 第2章の準備ここまで ===== */
+/* ===== 資材保管区画・作業員イベント ===== */
+
+const STORAGE_AREA = 4;
+areaNames[STORAGE_AREA] = "資材保管区画";
+
+let workerEventBattle = false;
+let workerNumber = 0;
+
+/* ---------- 会話画面 ---------- */
+
+const chapterScene = makeOverlay("chapterScene", "第2章");
+chapterScene.overlay.style.zIndex = "1250";
+
+function showChapterScene(lines, onComplete) {
+  clearInput();
+  closeMovePanel();
+  mode = "chapterScene";
+
+  let index = 0;
+
+  function showLine() {
+    chapterScene.card.replaceChildren();
+
+    const heading = document.createElement("h2");
+    heading.id = "chapterSceneTitle";
+    heading.textContent = "資材保管区画の異変";
+
+    const text = document.createElement("p");
+    text.style.whiteSpace = "pre-line";
+    text.textContent = lines[index];
+
+    chapterScene.card.append(heading, text);
+
+    const next = addButton(
+      chapterScene.card,
+      index === lines.length - 1 ? "進む" : "次へ",
+      () => {
+        index++;
+
+        if (index < lines.length) {
+          showLine();
+          return;
+        }
+
+        chapterScene.overlay.hidden = true;
+        onComplete();
+      }
+    );
+
+    chapterScene.overlay.hidden = false;
+    next.focus({ preventScroll: true });
+  }
+
+  showLine();
+}
+
+/* ---------- マップ ---------- */
+
+const tileBeforeStorage = tile;
+
+tile = function(x, y) {
+  if (area !== STORAGE_AREA) {
+    return tileBeforeStorage(x, y);
+  }
+
+  if (x <= 0 || y <= 0 || x >= W - 1 || y >= H - 1) {
+    return "tree";
+  }
+
+  // 横長の電気錠付きフェンス。
+  // イベント完了後だけ中央の扉が通行可能になる。
+  if (x === 12 && y >= 1 && y <= 12) {
+    if (y === 7 && chapter2State.defeatedByWorker) {
+      return "path";
+    }
+    return "house";
+  }
+
+  // ケーブルの制御盤と宝箱
+  if ((x === 11 && y === 6) || (x === 5 && y === 10)) {
+    return "house";
+  }
+
+  if (x >= 3 && x <= 8 && y >= 2 && y <= 3) {
+    return "house";
+  }
+
+  if (x >= 15 && x <= 17 && y >= 10 && y <= 11) {
+    return "water";
+  }
+
+  if (y === 7 || x === 2 || x === 17) return "path";
+
+  return "ground";
+};
+
+const drawBeforeStorage = draw;
+
+draw = function() {
+  if (area !== STORAGE_AREA) {
+    drawBeforeStorage();
+
+    if (area === 3 && chapter2State.metSuzuki) {
+      mapLabel("資材保管区画 →", 560, 240);
+    }
+    return;
+  }
+
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      drawTile(x, y);
+
+      if (tile(x, y) === "ground") {
+        rect(x*T, y*T, T, T, (x+y)%2 ? "#a9aa96" : "#b7b5a0");
+        rect(x*T+6, y*T+22, 9, 3, "#8f9585");
+      }
+    }
+  }
+
+  // 積まれた資材
+  for (let x = 3; x <= 8; x++) {
+    for (let y = 2; y <= 3; y++) {
+      rect(x*T+2, y*T+3, 28, 27, "#947755");
+      rect(x*T+5, y*T+7, 22, 3, "#ceb58a");
+      rect(x*T+13, y*T+3, 4, 27, "#5d655b");
+    }
+  }
+
+  // フェンスと電気錠の扉
+  for (let y = 1; y <= 12; y++) {
+    if (y === 7 && chapter2State.defeatedByWorker) continue;
+
+    rect(12*T+5, y*T, 22, T, "#596f70");
+    rect(12*T+8, y*T+4, 4, 24, "#a8bbb2");
+    rect(12*T+20, y*T+4, 4, 24, "#a8bbb2");
+  }
+
+  if (!chapter2State.defeatedByWorker) {
+    rect(12*T+3, 7*T+2, 26, 28, "#465b60");
+    rect(12*T+14, 7*T+12, 6, 7, "#e7bd68");
+  }
+
+  // ケーブルと制御盤
+  rect(11*T+4, 6*T+5, 24, 25, "#52676a");
+  rect(
+    11*T+10, 6*T+10, 8, 6,
+    chapter2State.cableCut ? "#73877a" : "#efb959"
+  );
+
+  if (!chapter2State.cableCut) {
+    rect(11*T+24, 6*T+12, 19, 4, "#d99d54");
+  }
+
+  // 後続の釣りシステムで使用する宝箱
+  rect(5*T+3, 10*T+9, 26, 21, "#a47748");
+  rect(5*T+3, 10*T+9, 26, 5, "#dfbb70");
+  rect(5*T+14, 10*T+15, 5, 7, "#f1d791");
+
+  person(p.px, p.py, true, p.dir, p.moving);
+
+  mapLabel("← 工事峠", 65, 240);
+  mapLabel("制御盤", 11*T+16, 6*T-5);
+  mapLabel("宝箱", 5*T+16, 10*T-3);
+
+  if (chapter2State.defeatedByWorker) {
+    mapLabel("扉の先へ →", 560, 240);
+  }
+};
+
+/* ---------- ラボ帰還 ---------- */
+
+function returnFromWorkerEvent() {
+  workerEventBattle = false;
+  workerNumber = 0;
+  bossBattle = false;
+  busy = false;
+  ended = false;
+  guarding = false;
+  movePower = 1;
+
+  chapter2State.cableCut = true;
+  chapter2State.defeatedByWorker = true;
+
+  $("battle").hidden = true;
+  roster.overlay.hidden = true;
+  caught.overlay.hidden = true;
+  gameOverScreen.overlay.hidden = true;
+  closeMovePanel();
+
+  area = 0;
+  p.x = 4;
+  p.y = 5;
+  p.px = p.x*T;
+  p.py = p.y*T;
+  p.dir = "up";
+  p.moving = false;
+
+  // このイベントだけは全滅しても回復して帰還。
+  // 所持金・ボール・回復薬は変更しない。
+  heal();
+  enemy = null;
+
+  showChapterScene([
+    "……気がつくと、研究所のベッドにいた。",
+    "博士：資材保管区画の近くで倒れていたんだ。\n仲間たちも全員、手当てしておいたよ。",
+    "博士：あの地震のあと、電気錠の扉が開いたらしい。\n準備ができたら、もう一度調べておいで。",
+    "第2章 開始\n資材保管区画の扉が開放された！\n探索に戻ったらセーブしておこう。"
+  ], () => {
+    mode = "map";
+    safe = 5;
+    grassCount = 0;
+    clearInput();
+    status();
+    canvas.setAttribute("aria-label", areaNames[area] + "のマップ");
+    say("第2章が始まった！ 資材保管区画へ戻ってみよう。セーブも忘れずに！");
+    canvas.focus({ preventScroll: true });
+  });
+}
+
+/* ---------- 特殊戦闘 ---------- */
+
+function startWorkerOpponent() {
+  workerEventBattle = true;
+  workerNumber++;
+
+  // トレーナー戦として捕獲・逃走を禁止。
+  startEncounter(createMonster("穂谷野", 80), true);
+
+  $("battleTitle").textContent =
+    "怒れる作業員！ 穂谷野 " + workerNumber + "/5";
+
+  log(
+    "作業員：設備に何をした！\n" +
+    "穂谷野 Lv.80 が立ちはだかる！"
+  );
+
+  syncBattle();
+}
+
+const syncBeforeWorker = syncBattle;
+
+syncBattle = function() {
+  syncBeforeWorker();
+
+  if (workerEventBattle) {
+    $("catch").disabled = true;
+    $("run").disabled = true;
+
+    $("battleNote").textContent =
+      "物語専用の戦闘：捕獲・逃走不可。" +
+      "この戦闘で全滅してもゲームオーバーにはなりません。";
+  }
+};
+
+const finishBeforeWorker = finish;
+
+finish = function(text) {
+  if (!workerEventBattle) {
+    finishBeforeWorker(text);
+    return;
+  }
+
+  // 通常の賞金・ボス撃破処理には渡さない。
+  if (enemy && enemy.hp === 0) {
+    append(text);
+
+    if (workerNumber < 5) {
+      busy = true;
+      ended = false;
+      syncBattle();
+
+      setTimeout(() => {
+        if (!workerEventBattle || mode !== "battle") return;
+        startWorkerOpponent();
+      }, 1000);
+
+      return;
+    }
+
+    busy = true;
+    ended = true;
+    syncBattle();
+    $("closeBattle").hidden = true;
+
+    showChapterScene([
+      "穂谷野を5体すべて倒した！",
+      "しかし、作業員の怒りは収まらない。\n作業員：まだ終わりじゃないぞ！",
+      "作業員の怒りの一撃！\n主人公は意識を失った……。"
+    ], returnFromWorkerEvent);
+    return;
+  }
+
+  returnFromWorkerEvent();
+};
+
+const enemyTurnBeforeWorker = enemyTurn;
+
+enemyTurn = function() {
+  if (!workerEventBattle) {
+    enemyTurnBeforeWorker();
+    return;
+  }
+
+  setTimeout(() => {
+    if (!workerEventBattle || mode !== "battle" ||
+        ended || !enemy || !partner) return;
+
+    const amount = Math.min(partner.hp, damage(enemy, partner));
+    partner.hp -= amount;
+
+    append(enemy.name + "の攻撃！ " + amount + "ダメージ。");
+
+    if (partner.hp <= 0) {
+      append(partner.name + "は力尽きた……。");
+
+      const next = party.find(mon => mon.hp > 0);
+
+      if (!next) {
+        returnFromWorkerEvent();
+        return;
+      }
+
+      partner = next;
+      guarding = false;
+      movePower = 1;
+      append("いっておいで、" + partner.name + "！");
+    }
+
+    busy = false;
+    syncBattle();
+    $("attack").focus({ preventScroll: true });
+  }, 550);
+};
+
+/* ---------- ケーブル切断 ---------- */
+
+function beginCableEvent() {
+  if (chapter2State.defeatedByWorker) return;
+
+  chapter2State.cableCut = true;
+
+  showChapterScene([
+    "丈夫なボルトカッターでケーブルを切断した。\nバチッ……！",
+    "ゴゴゴゴ……！\n大地が揺れ、資材が大きな音を立てた。",
+    "作業員：おい！ そこで何をしている！",
+    "鈴木太間：まずい……！ あとは任せた！\n鈴木太間は逃げ出した。",
+    "作業員：お前には話を聞かせてもらうぞ！\n穂谷野 Lv.80、5体との戦闘が始まる。"
+  ], () => {
+    workerNumber = 0;
+    startWorkerOpponent();
+  });
+}
+
+/* ---------- 調べる・エリア移動 ---------- */
+
+const interactBeforeStorage = interact;
+
+interact = function() {
+  if (mode !== "map" || p.moving) return;
+
+  if (area === 3 && bossDefeated &&
+      Math.abs(p.x-16) + Math.abs(p.y-6) === 1 &&
+      chapter2State.metSuzuki) {
+    say(chapter2State.defeatedByWorker
+      ? "鈴木太間：あの時は悪かった……。開いた扉の先を調べてくれ。"
+      : chapter2State.boughtCutter
+        ? "鈴木太間：準備できたな。右の道から資材保管区画へ向かおう。"
+        : "鈴木太間：村の商店で丈夫なボルトカッターを用意してくれ。");
+    return;
+  }
+
+  if (area === 3 && p.y === 7 && p.x >= 17) {
+    if (!bossDefeated || !chapter2State.metSuzuki) {
+      say("この先は資材保管区画。鈴木太間に勝利して、話を聞こう。");
+      return;
+    }
+
+    travel(STORAGE_AREA);
+    say("資材保管区画に到着。中央の制御盤に隣接して「調べる」を押そう。");
+    return;
+  }
+
+  if (area === STORAGE_AREA) {
+    if (p.y === 7 && p.x <= 2) {
+      travel(3);
+      return;
+    }
+
+    if (Math.abs(p.x-11) + Math.abs(p.y-6) === 1) {
+      if (chapter2State.defeatedByWorker) {
+        say("切断されたケーブル。電気錠の扉は開いている。");
+      } else if (!chapter2State.boughtCutter) {
+        say("丈夫なケーブルだ。村の商店でボルトカッターを買ってこよう。");
+      } else if (window.confirm("ケーブルを切断して、イベントを進めますか？")) {
+        beginCableEvent();
+      }
+      return;
+    }
+
+    if (Math.abs(p.x-5) + Math.abs(p.y-10) === 1) {
+      say("宝箱がある。中身の取得は、次の釣りシステム追加で有効になります。");
+      return;
+    }
+
+    if (p.y === 7 && p.x >= 17 &&
+        chapter2State.defeatedByWorker) {
+      say("扉の先には新たな道が続いている。新マップ3種は次の追加で実装します。");
+      return;
+    }
+
+    say(chapter2State.defeatedByWorker
+      ? "作業員の姿はもうない。中央の扉を通って向こう側へ進める。"
+      : "中央の制御盤にケーブルがつながっている。近づいて調べよう。");
+    return;
+  }
+
+  interactBeforeStorage();
+};
+
+$("action").onclick = interact;
+
+/* ---------- 新エリアのセーブ検証 ---------- */
+/*
+ * 保存ボタンは既存のものを使用。
+ * 既存の検証はエリア0～3限定なので、
+ * エリア4だけ位置と進行条件を追加検証する。
+ */
+const validateBeforeStorage = validateSave;
+
+validateSave = function(data) {
+  if (!data || data.version !== 2 || data.area !== STORAGE_AREA) {
+    return validateBeforeStorage(data);
+  }
+
+  const point = data.player;
+
+  if (!point ||
+      !validInteger(point.x, 1, W-2) ||
+      !validInteger(point.y, 1, H-2) ||
+      !Object.prototype.hasOwnProperty.call(directions, point.dir)) {
+    throw new Error("資材保管区画の位置が不正です");
+  }
+
+  const previous = {
+    area,
+    money,
+    potions,
+    bossDefeated,
+    chapter2State
+  };
+
+  try {
+    // 仲間・所持品・イベントフラグは既存の検証を再利用。
+    const restored = validateBeforeStorage({
+      ...data,
+      area: 0,
+      player: {x:7, y:10, dir:point.dir}
+    });
+
+    if (!restored.length ||
+        !bossDefeated ||
+        !chapter2State.metSuzuki) {
+      throw new Error("資材保管区画への進行条件が不正です");
+    }
+
+    if (chapter2State.defeatedByWorker &&
+        (!chapter2State.cableCut || !chapter2State.boughtCutter)) {
+      throw new Error("イベントの進行状態が不正です");
+    }
+
+    // 演出中・戦闘中は保存できないため、
+    // 切断済みでイベント未完了の保存は受け付けない。
+    if (chapter2State.cableCut &&
+        !chapter2State.defeatedByWorker) {
+      throw new Error("イベントが未完了です");
+    }
+
+    area = STORAGE_AREA;
+
+    if (blocked(point.x, point.y) ||
+        (point.x > 12 && !chapter2State.defeatedByWorker)) {
+      throw new Error("移動できない場所です");
+    }
+
+    return restored;
+  } catch (error) {
+    area = previous.area;
+    money = previous.money;
+    potions = previous.potions;
+    bossDefeated = previous.bossDefeated;
+    chapter2State = previous.chapter2State;
+    throw error;
+  }
+};
+
+/* ===== 資材保管区画・作業員イベントここまで ===== */
 
 const welcomeMessage = restoreAdventure();
 status();
