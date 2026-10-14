@@ -2761,6 +2761,419 @@ validateSave = function(data) {
 };
 
 /* ===== 資材保管区画・作業員イベントここまで ===== */
+/* ===== 釣りシステム・海パン穂谷野 ===== */
+
+/* 独立した種族として登録。旧セーブの仲間検証にも対応 */
+const swimmingHotayano = {
+  name: "海パン穂谷野",
+  icon: "🩳",
+  maxHp: 62,
+  atk: 23,
+  def: 16
+};
+
+wildTypes.push(swimmingHotayano);
+speciesList.push(swimmingHotayano);
+
+moveNames["海パン穂谷野"] = "豪快クロール";
+
+/* ---------- 専用イラスト ---------- */
+
+const artBeforeFishing = window.komorebiExtraArt;
+
+window.komorebiExtraArt = function(name) {
+  if (name !== "海パン穂谷野") {
+    return artBeforeFishing ? artBeforeFishing(name) : "";
+  }
+
+  return `
+    <svg class="mon-art" viewBox="0 0 128 128"
+      role="img" aria-label="海パン穂谷野">
+      <ellipse cx="64" cy="119" rx="46" ry="7"
+        fill="#649eae" opacity=".35"/>
+
+      <g stroke="#354d43" stroke-width="3"
+        stroke-linejoin="round" stroke-linecap="round">
+        <path d="M39 57L23 70L13 91L24 97L43 76
+          M89 57L105 70L115 91L104 97L85 76"
+          fill="#edbf94"/>
+
+        <path d="M41 51Q64 44 87 51L92 88
+          Q64 99 36 88Z"
+          fill="#f0c69f"/>
+
+        <path d="M38 87L90 87L88 108L68 108L64 98
+          L60 108L40 108Z"
+          fill="#397fad"/>
+
+        <path d="M40 87H88" stroke="#f1d98b"/>
+        <path d="M46 93L51 100M78 93L73 100"
+          stroke="#e9edca"/>
+
+        <path d="M43 109L42 117L58 117L57 109
+          M71 109L70 117L86 117L85 109"
+          fill="#edbf94"/>
+
+        <ellipse cx="64" cy="32" rx="22" ry="25"
+          fill="#f0c69f"/>
+
+        <path d="M42 25Q44 5 64 6Q84 5 86 25
+          L76 19L53 19Z"
+          fill="#414c49"/>
+
+        <path d="M42 29H86" stroke="#446d81"/>
+
+        <rect x="46" y="25" width="15" height="11"
+          rx="4" fill="#91d9e3"/>
+        <rect x="67" y="25" width="15" height="11"
+          rx="4" fill="#91d9e3"/>
+        <path d="M61 29H67"/>
+
+        <path d="M56 44Q64 50 72 44" fill="none"/>
+        <path d="M51 64L59 68M77 64L69 68
+          M64 70V79" fill="none" stroke="#bc8c70"/>
+
+        <path d="M8 113Q19 105 30 113T52 113
+          M77 118Q88 110 99 118T121 118"
+          fill="none" stroke="#91d7df"/>
+      </g>
+    </svg>
+  `;
+};
+
+/* ---------- 釣り竿の宝箱 ---------- */
+
+const interactBeforeFishingSystem = interact;
+
+interact = function() {
+  if (mode !== "map" || p.moving) return;
+
+  const besideChest =
+    area === STORAGE_AREA &&
+    Math.abs(p.x - 5) + Math.abs(p.y - 10) === 1;
+
+  if (besideChest) {
+    if (chapter2State.fishingRod) {
+      say("開いた宝箱だ。釣り竿は「大事な道具」に入っている。");
+      return;
+    }
+
+    chapter2State.fishingRod = true;
+    clearInput();
+
+    say(
+      "宝箱から「釣り竿」を手に入れた！\n" +
+      "水辺に向かって「🎣 釣りをする」を押そう。" +
+      "手持ちが6匹だと捕獲できないので注意！ セーブも忘れずに。"
+    );
+    return;
+  }
+
+  interactBeforeFishingSystem();
+};
+
+$("action").onclick = interact;
+
+/* 宝箱を取得済みの見た目にする */
+const drawBeforeFishingSystem = draw;
+
+draw = function() {
+  drawBeforeFishingSystem();
+
+  if (area === STORAGE_AREA && chapter2State.fishingRod) {
+    rect(5*T+3, 10*T+9, 26, 6, "#684d37");
+    rect(5*T+6, 10*T+16, 20, 8, "#443c31");
+    rect(5*T+3, 10*T+25, 26, 5, "#a47748");
+  }
+};
+
+/* ---------- 釣り ---------- */
+
+const fishingButton = addButton(
+  toolbar,
+  "🎣 釣りをする",
+  startFishing
+);
+
+function startFishing() {
+  if (mode !== "map" || p.moving) return;
+
+  if (!chapter2State.fishingRod) {
+    say("釣り竿が必要です。資材保管区画の宝箱を探そう！");
+    return;
+  }
+
+  if (!partner || partner.hp <= 0) {
+    say("釣りには元気な相棒が必要です。");
+    return;
+  }
+
+  const [dx, dy] = directions[p.dir];
+  const targetX = p.x + dx;
+  const targetY = p.y + dy;
+
+  // 工事峠の「water」は水ではなく設備のため除外
+  if (area === 3 || tile(targetX, targetY) !== "water") {
+    say("水辺のすぐ隣で、水の方を向いて押してね。村の池やしぶき海岸で釣りができます。");
+    return;
+  }
+
+  const fishingArea = area;
+  const fishingX = p.x;
+  const fishingY = p.y;
+
+  clearInput();
+  mode = "fishing";
+  fishingButton.disabled = true;
+
+  say("釣り糸を垂らした……。何が釣れるかな？");
+
+  setTimeout(() => {
+    // 待機中に状態が変わった場合は戦闘を開始しない
+    if (
+      mode !== "fishing" ||
+      area !== fishingArea ||
+      p.x !== fishingX ||
+      p.y !== fishingY
+    ) {
+      fishingButton.disabled = false;
+
+      if (mode === "fishing") {
+        mode = "map";
+        clearInput();
+      }
+      return;
+    }
+
+    // レア判定は1回の釣りにつき1回のみ
+    const rare = Math.random() < 0.012;
+    const name = rare
+      ? "海パン穂谷野"
+      : Math.random() < 0.5 ? "アワネコ" : "ミズマル";
+
+    const level = rare
+      ? 25
+      : 8 + Math.floor(Math.random() * 5);
+
+    fishingButton.disabled = false;
+
+    startEncounter(createMonster(name, level), false);
+
+    $("battleTitle").textContent = rare
+      ? "激レア！ 海パン穂谷野が釣れた！"
+      : "釣れたのは、野生の" + name + "！";
+
+    say(rare
+      ? "大きな水しぶき！ 海パン穂谷野が現れた！"
+      : name + "が釣れた！");
+
+    log(
+      (rare
+        ? "水面から海パン穂谷野が飛び出した！"
+        : "釣り糸に" + name + "が食いついた！") +
+      "\nいっておいで、" + partner.name + "！"
+    );
+  }, 1800);
+}
+
+/* ---------- 海パン穂谷野の専用技 ---------- */
+/*
+ * 専用技は通常の攻撃処理を利用するので、
+ * 経験値・レベルアップ・作業員戦の分岐を維持。
+ * 倍率は通常攻撃に対する値。
+ */
+
+const swimmingMoves = [
+  {name:"豪快クロール", power:1.55, accuracy:0.95},
+  {name:"海パンプレス", power:1.90, accuracy:0.80},
+  {name:"大波フィニッシュ", power:2.40, accuracy:0.65}
+];
+
+const swimmingMoveButtons = swimmingMoves.map(move => {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.textContent =
+    move.name + " · " + move.power + "倍 / " +
+    Math.round(move.accuracy * 100) + "%";
+
+  button.hidden = true;
+  button.onclick = () => useSwimmingMove(move);
+
+  movePanel.insertBefore(button, cancelMove);
+  return button;
+});
+
+function useSwimmingMove(move) {
+  if (
+    mode !== "battle" ||
+    busy ||
+    ended ||
+    !partner ||
+    partner.name !== "海パン穂谷野"
+  ) return;
+
+  closeMovePanel();
+  guarding = false;
+  movePower = 1;
+
+  if (Math.random() >= move.accuracy) {
+    busy = true;
+    log(partner.name + "の" + move.name + "！\n攻撃は外れた！");
+    syncBattle();
+    enemyTurn();
+    return;
+  }
+
+  movePower = move.power;
+
+  try {
+    originalAttack();
+
+    $("log").textContent = $("log").textContent.replace(
+      partner.name + "の攻撃！",
+      partner.name + "の" + move.name + "！"
+    );
+  } finally {
+    movePower = 1;
+  }
+}
+
+/*
+ * 海パン穂谷野では既存の「属性技」を隠し、
+ * 専用技3つを表示。たいあたり・休憩・防御は維持。
+ */
+const refreshBeforeSwimmingMoves = refreshMovePanel;
+
+refreshMovePanel = function() {
+  refreshBeforeSwimmingMoves();
+
+  const swimming =
+    !!partner && partner.name === "海パン穂谷野";
+
+  moveButtons.special.hidden = swimming;
+
+  swimmingMoveButtons.forEach(button => {
+    button.hidden = !swimming;
+    button.disabled =
+      !swimming || mode !== "battle" || busy || ended;
+  });
+
+  if (swimming) {
+    moveHelp.textContent =
+      "専用技はボタンに威力倍率と命中率を表示。" +
+      "ひと休みは最大HPの30%回復。" +
+      "身を守ると次の攻撃のダメージを約65%軽減。";
+  } else {
+    moveHelp.textContent =
+      "属性技は威力1.35倍・命中85%。" +
+      "ひと休みは最大HPの30%回復。" +
+      "身を守ると次の攻撃のダメージを約65%軽減。";
+  }
+};
+
+/*
+ * 既存の監視には以前の関数が登録されているため、
+ * 専用技ボタン用にも更新監視を追加。
+ */
+new MutationObserver(() => {
+  refreshMovePanel();
+}).observe($("attack"), {
+  attributes: true,
+  attributeFilter: ["disabled"]
+});
+
+/* 手持ち画面でも専用技を案内 */
+const renderPartyBeforeSwimming = renderParty;
+
+renderParty = function() {
+  renderPartyBeforeSwimming();
+
+  roster.card.querySelectorAll(".party-entry").forEach((entry, index) => {
+    if (party[index]?.name !== "海パン穂谷野") return;
+
+    const moveText = Array.from(entry.children).find(
+      element =>
+        element.tagName === "P" &&
+        element.textContent.startsWith("技：")
+    );
+
+    if (moveText) {
+      moveText.textContent =
+        "技：たいあたり ／ 豪快クロール ／ 海パンプレス ／ " +
+        "大波フィニッシュ ／ ひと休み ／ 身を守る";
+    }
+  });
+};
+
+/* ---------- 敵としても専用技を使用 ---------- */
+
+const enemyTurnBeforeSwimming = enemyTurn;
+
+enemyTurn = function() {
+  if (
+    !enemy ||
+    enemy.name !== "海パン穂谷野" ||
+    workerEventBattle
+  ) {
+    enemyTurnBeforeSwimming();
+    return;
+  }
+
+  const attackingEnemy = enemy;
+
+  setTimeout(() => {
+    if (
+      mode !== "battle" ||
+      ended ||
+      enemy !== attackingEnemy ||
+      !partner
+    ) return;
+
+    const move =
+      swimmingMoves[Math.floor(Math.random() * swimmingMoves.length)];
+
+    if (Math.random() >= move.accuracy) {
+      // 防御はこの敵ターンで消費する
+      guarding = false;
+      append(enemy.name + "の" + move.name + "！ 攻撃は外れた！");
+    } else {
+      const amount = Math.min(
+        partner.hp,
+        Math.max(1, Math.floor(damage(enemy, partner) * move.power))
+      );
+
+      partner.hp -= amount;
+
+      append(
+        enemy.name + "の" + move.name + "！ " +
+        amount + "ダメージ。"
+      );
+    }
+
+    if (partner.hp <= 0) {
+      append(partner.name + "は力尽きた……。");
+
+      const next = party.find(mon => mon.hp > 0);
+
+      if (!next) {
+        finish("仲間が全員倒れてしまった……。");
+        showGameOver();
+        return;
+      }
+
+      partner = next;
+      guarding = false;
+      movePower = 1;
+      append("いっておいで、" + partner.name + "！");
+    }
+
+    busy = false;
+    syncBattle();
+    $("attack").focus({ preventScroll: true });
+  }, 550);
+};
+
+/* ===== 釣りシステムここまで ===== */
 
 const welcomeMessage = restoreAdventure();
 status();
@@ -2982,11 +3395,13 @@ window.komorebiArt = art;
 
 const starterNames = ["コノハル","ヒノポン","ミズマル"];
 const allNames = [
+  "海パン穂谷野",
   ...starterNames,
   "モコリ","ハネピ","クサモチ",
   "イシコロガ","ホタルン","アワネコ","ヨルフク",
   "コゲタヌ","ツララビ","ハガネムシ","穂谷野"
 ];
+
 
 document.querySelectorAll("[data-starter]").forEach(b=>{
   b.insertAdjacentHTML("afterbegin",art(starterNames[Number(b.dataset.starter)]));
